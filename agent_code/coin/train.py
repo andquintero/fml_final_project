@@ -48,6 +48,8 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     :param new_game_state: The state the agent is in now.
     :param events: The events that occurred when going from  `old_game_state` to `new_game_state`
     """
+    print("Events, train: ", events)
+
     self.logger.debug(f'Encountered game event(s) {", ".join(map(repr, events))} in step {new_game_state["step"]}')
 
     # Idea: Add your own events to hand out rewards
@@ -86,9 +88,16 @@ def reward_from_events(self, events: List[str]) -> int:
     certain behavior.
     """
     game_rewards = {
-        e.COIN_COLLECTED: 1,
-        e.KILLED_OPPONENT: 5,
-        PLACEHOLDER_EVENT: -.1  # idea: the custom event is bad
+        e.MOVED_LEFT  : -1,
+        e.MOVED_RIGHT : -1,
+        e.MOVED_UP    : -1,
+        e.MOVED_DOWN  : -1,
+        e.INVALID_ACTION : -10,
+
+        e.COIN_COLLECTED : 100
+        #e.TIME_TO_COIN : 100
+        #e.KILLED_OPPONENT: 5,
+        #PLACEHOLDER_EVENT: -.1  # idea: the custom event is bad
     }
     reward_sum = 0
     for event in events:
