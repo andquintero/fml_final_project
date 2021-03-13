@@ -73,10 +73,62 @@ def state_to_features(game_state: dict) -> np.array:
     if game_state is None:
         return None
 
+    # extract the field, coin positions and agent information
+    field = game_state['field']
+    coins = game_state['coins']
+    name, score, bomb, location = game_state['self']
+
+    # agent movements (north - east - south - west)
+    area = [(0,1), (1,0), (0,-1), (-1,0)]
+
+    # create graph for possible movements through the field
+    x_0, y_0 = np.where(field == 0)
+    zero_vals = [(x_0[i], y_0[i]) for i in range(len(x_0))]
+    targets = []
+    for coord in zero_vals:
+        pb = [tuple(map(sum, zip(coord, n))) for n in area]
+        targets.append([x for x in pb if x in zero_vals])
+    graph = dict(zip(zero_vals, targets))
+
+    # define function for BFS
+    # https://www.geeksforgeeks.org/building-an-undirected-graph-and-finding-shortest-path-using-dictionaries-in-python/
+    def BFS_SP(graph, start, goal): 
+    explored = [] 
+    queue = [[start]] 
+    if start == goal: 
+        return 0
+    while queue: 
+        path = queue.pop(0) 
+        node = path[-1] 
+        if node not in explored: 
+            neighbours = graph[node] 
+            for neighbour in neighbours: 
+                new_path = list(path) 
+                new_path.append(neighbour) 
+                queue.append(new_path) 
+                if neighbour == goal: 
+                    return len(new_path)-1
+            explored.append(node) 
+
+    # calculate distance to each coin
+    coin_dist = np.sort(np.array([BFS_SP(graph, location, coin) for coin in coins]))
+
+    # get info for the surroundings of the agent (N-E-S-W)
+    sur = [tuple(map(sum, zip(location, n))) for n in area]
+    sur_val = np.array([field[c[0], c[1]] for c in sur])
+
+    # define features 
+    # we have 13 features in total (4 fields next to the agent) and distances to all coins starting with the closest
+    # (if a coin is already collected, its distance is set to 1000)
+    features = np.hstack((sur_val, coin_dist))
+    to_fill = 13 - len(features)
+    features = np.hstack((features, np.repeat(1000, to_fill)))
+    return features
+
     # For example, you could construct several channels of equal shape, ...
-    channels = []
-    channels.append(...)
+    #channels = []
+    #channels.append(...)
     # concatenate them as a feature tensor (they must have the same shape), ...
-    stacked_channels = np.stack(channels)
+    #stacked_channels = np.stack(channels)
     # and return them as a vector
-    return stacked_channels.reshape(-1)
+    #return stacked_channels.reshape(-1)
