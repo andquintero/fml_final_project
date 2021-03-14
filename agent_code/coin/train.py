@@ -82,6 +82,9 @@ def setup_training(self):
 
     self.model.fit(self.trainingX, self.trainingQ)
 
+    # Create table indicating the index of the state and action
+    self.actionSequence = np.empty((0,2))
+
     # Example: Setup an array that will note transition tuples
     # (s, a, r, s')
     self.transitions = deque(maxlen=TRANSITION_HISTORY_SIZE)
@@ -116,45 +119,69 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     # state_to_features is defined in callbacks.py
     self.transitions.append(Transition(state_to_features(old_game_state), self_action, state_to_features(new_game_state), reward_from_events(self, events)))
     
-    reward = reward_from_events(self, events)
     #### WARNING
     # There is a bug in the main code, and the new_game_state is actually the old_game_state
-    old_features = state_to_features(new_game_state)
+    reward = reward_from_events(self, events)
+    #old_features = state_to_features(old_game_state)
+    new_features = state_to_features(new_game_state)
+    
     #print('old_game_state', new_game_state)
     #print('old_features :', old_features)
     # Index: find if state was already present in dataset
-    idx_s = ((self.trainingX == old_features).all(axis=1).nonzero())[0]
+    idx_s = ((self.trainingX == new_features).all(axis=1).nonzero())[0]
     #print('comp states:', self.trainingX == old_features)
-
     #idx_action = np.where(ACTIONS == self_action)[0]
-    idx_action = ACTIONS.index(self_action)
-    print('self_action :', self_action)
+    idx_action = ACTIONS.index(self_action) if self_action is not None else np.nan
+
+    
     print('reward :', reward)
     #print('ACTIONS :', ACTIONS)
     #print('index same:', idx_s, idx_s.shape)
     #print('idx_action :', idx_action)
-
-    if len(idx_s) == 0:
-        empty_Q = np.full((1,len(ACTIONS)), np.nan)
-
-        self.trainingQ = np.vstack((self.trainingQ, empty_Q))
-        self.trainingX = np.vstack((self.trainingX, old_features))
-        q_old = 0
-        idx_s = len(self.trainingQ)-1
+    
+    if new_game_state['step'] > 1:
+        if len(idx_s) == 0:
+            empty_Q = np.full((1,len(ACTIONS)), np.nan)
+            self.trainingQ = np.vstack((self.trainingQ, empty_Q))
+            self.trainingX = np.vstack((self.trainingX, new_features))
+            idx_s = len(self.trainingQ)-1
+            self.trainingQ[idx_s, idx_action] = reward
+        else:
+            idx_s = idx_s[0]
     else:
-        q_old = np.nan_to_num(self.trainingQ[idx_s, idx_action])
+        idx_s = np.nan
+        
+    # Create table indicating the index of the state and action
+    self.actionSequence = np.vstack((self.actionSequence, np.array([[idx_s, idx_action]])))
+    #print('self_action :', self.actionSequence)
 
-    self.trainingQ[idx_s, idx_action] = update_Q_values(self, q_old, reward, old_features)
+    if new_game_state['step'] > 2:
+        #print('self_action :', self.actionSequence)
+        #action
+        #print('actionSequence :', type(self.actionSequence[-2, :]))
+        idx = self.actionSequence[-2, :].astype(int)
+        q_old = np.nan_to_num(self.trainingQ[idx[0], idx[1]])
+        #print('q_old :', q_old)
+        #q_old = 0
+        #q_old = np.nan_to_num(self.trainingQ[idx_s, idx_action])
+        #else:
 
-    #print("train old_game_state:", old_game_state['step'])
-    #print("train new_game_state:", new_game_state['step'])
+        self.trainingQ[idx[0], idx[1]] = update_Q_values(self, q_old, reward, new_features)
+        #if self.actionSequence[-1, 1] is not None:
+        self.model.fit(self.trainingX, np.nan_to_num(self.trainingQ))
+
+        #print("train old_game_state:", old_game_state['step'])
+        #print("train new_game_state:", new_game_state['step'])
 
     
-    print("train self.trainingQ:", self.trainingQ)
+    
+
+    #print("train self.trainingQ:", self.trainingQ)
+    print("train self.trainingQ:", self.trainingQ.shape)
     #print("train self:", self)
     #print("train self transitions:", self.transitions)
     #self.model.fit(self.trainingX, self.trainingQ)
-    self.model.fit(self.trainingX, np.nan_to_num(self.trainingQ))
+    #self.model.fit(self.trainingX, np.nan_to_num(self.trainingQ))
 
 
 def end_of_round(self, last_game_state: dict, last_action: str, events: List[str]):
@@ -203,7 +230,7 @@ def reward_from_events(self, events: List[str]) -> int:
     self.logger.info(f"Awarded {reward_sum} for events {', '.join(events)}")
     return reward_sum
 
-def update_Q_values(self, q_old, reward, current_features):
+def update_Q_values(self, q_old, reward, new_features):
     """
     Update Q values depedending on new state and auxiliary rewards
 
@@ -213,7 +240,7 @@ def update_Q_values(self, q_old, reward, current_features):
     # Learning rate
     ALPHA = 1
 
-    q_new = reward + (GAMMA * self.model.predict(current_features).max())
+    q_new = reward + (GAMMA * self.model.predict(new_features).max())
     q_update = q_old + (ALPHA * (q_new - q_old))
     
     #x = np.full((1,len(ACTIONS)), np.nan)

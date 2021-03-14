@@ -75,7 +75,7 @@ def act(self, game_state: dict) -> str:
     current_features = state_to_features(game_state)
     #print('state_to_features:', current_features)
     model_pred = self.model.predict(current_features)
-    #print('model predict:', model_pred)
+    print('model predict:', model_pred)
     #return np.random.choice(ACTIONS, p=[.25, .25, .25, .25])
     
     

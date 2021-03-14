@@ -424,7 +424,7 @@ class BombeRLeWorld(GenericWorld):
             a.reset_game_events()
 
     def poll_and_run_agents(self):
-        #self.send_training_events()
+        self.send_training_events()
 
         # Tell agents to act
         for a in self.active_agents:
@@ -454,7 +454,7 @@ class BombeRLeWorld(GenericWorld):
             self.replay['actions'][a.name].append(action)
             self.perform_agent_action(a, action)
         # training events should be done after agent action
-        self.send_training_events()
+        #self.send_training_events()
 
     def end_round(self):
         assert self.running, "End of round requested while not running"
