@@ -72,11 +72,13 @@ def act(self, game_state: dict) -> str:
     #return np.random.choice(ACTIONS, p=self.model)
     current_features = state_to_features(game_state).reshape(1, -1)
     print('state_to_features:', current_features)
-    model_prediction = self.model.predict(current_features)
-    print('model predict:', np.argmax(model_prediction))
+    model_pred = self.model.predict(current_features)
+    print('model predict:', model_pred)
     #return np.random.choice(ACTIONS, p=[.25, .25, .25, .25])
     
-    return ACTIONS[np.argmax(model_prediction)]
+    
+    return ACTIONS[np.random.choice(np.flatnonzero(model_pred == model_pred.max())) ]
+    #return ACTIONS[np.argmax(model_pred)]
 
 
 def state_to_features(game_state: dict) -> np.array:

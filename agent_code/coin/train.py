@@ -30,6 +30,29 @@ RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
 # Events
 PLACEHOLDER_EVENT = "PLACEHOLDER"
 
+def augment_features(features, rewards):
+    """
+    Augment one set of features by rotating in all 4 positble directions
+
+    :param features: the free tiles information is given in the first 4 position of the array
+                     top, right, down, left
+
+
+    """
+    augmented_feat = np.tile(features, (4,1))
+    augmented_feat[1, 0:4] = features[0, [3,0,1,2]] # rotate 90 clockwise
+    augmented_feat[2, 0:4] = features[0, [2,3,0,1]] # rotate 180 clockwise
+    augmented_feat[3, 0:4] = features[0, [1,2,3,0]] # rotate 270 clockwise
+    #print('augmented_feat', augmented_feat)
+
+    augmented_rewards = np.tile(rewards, (4,1))
+    augmented_rewards[1, 0:4] = rewards[0, [3,0,1,2]] # rotate 90 clockwise
+    augmented_rewards[2, 0:4] = rewards[0, [2,3,0,1]] # rotate 180 clockwise
+    augmented_rewards[3, 0:4] = rewards[0, [1,2,3,0]] # rotate 270 clockwise
+    #print('augmented_rewards', augmented_rewards)
+
+    return (augmented_feat, augmented_rewards)
+
 
 def setup_training(self):
     """
@@ -45,8 +68,13 @@ def setup_training(self):
     # Initial guess, agent is in the bottom right corner and moved up or left
     #ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT']
     guess_init_reward = np.array([-1, -10, -10, -1]).reshape(1, -1)
-    guess_init_state  = np.array([0, -1,  -1, 0,  5,  7, 11, 14, 16, 16, 18, 19, 25]).reshape(1, -1)
-    self.model.fit(guess_init_state, guess_init_reward)
+    #guess_init_state  = np.array([0, -1,  -1, 0,  5,  7, 11, 14, 16, 16, 18, 19, 25]).reshape(1, -1)
+    guess_init_state  = np.array([0, -1,  -1, 0,  -1,  -1, -1,  -1, -1,  -1, -1,  -1, -1]).reshape(1, -1)
+    aug_state, aug_rewards = augment_features(guess_init_state, guess_init_reward)
+
+    print("train self:", self)
+
+    self.model.fit(aug_state, aug_rewards)
 
     # Example: Setup an array that will note transition tuples
     # (s, a, r, s')
@@ -81,6 +109,7 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
 
     # state_to_features is defined in callbacks.py
     self.transitions.append(Transition(state_to_features(old_game_state), self_action, state_to_features(new_game_state), reward_from_events(self, events)))
+    
 
 
 def end_of_round(self, last_game_state: dict, last_action: str, events: List[str]):
