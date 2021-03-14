@@ -7,12 +7,13 @@ import numpy as np
 #------------------------------------------------------------------------------#
 # Imported by us
 from sklearn.multioutput import MultiOutputRegressor
+from lightgbm import LGBMRegressor
 #from sklearn.ensemble import GradientBoostingRegressor
 # HistGradientBoostingRegressor is still experimental requieres:
 # explicitly require this experimental feature
-from sklearn.experimental import enable_hist_gradient_boosting  # noqa
+#from sklearn.experimental import enable_hist_gradient_boosting  # noqa
 # now you can import normally from ensemble
-from sklearn.ensemble import HistGradientBoostingRegressor
+#from sklearn.ensemble import HistGradientBoostingRegressor
 #------------------------------------------------------------------------------#
 
 
@@ -40,7 +41,8 @@ def setup(self):
         #self.model = weights / weights.sum()
 
         # Start GradientBoostingRegressor for every action
-        reg = HistGradientBoostingRegressor()
+        #reg = HistGradientBoostingRegressor()
+        reg = LGBMRegressor(use_missing=False, zero_as_missing=True)
         self.model = MultiOutputRegressor(reg)
 
     else:
@@ -70,10 +72,10 @@ def act(self, game_state: dict) -> str:
 
     self.logger.debug("Querying model for action.")
     #return np.random.choice(ACTIONS, p=self.model)
-    current_features = state_to_features(game_state).reshape(1, -1)
-    print('state_to_features:', current_features)
+    current_features = state_to_features(game_state)
+    #print('state_to_features:', current_features)
     model_pred = self.model.predict(current_features)
-    print('model predict:', model_pred)
+    #print('model predict:', model_pred)
     #return np.random.choice(ACTIONS, p=[.25, .25, .25, .25])
     
     
@@ -154,7 +156,7 @@ def state_to_features(game_state: dict) -> np.array:
     to_fill = 13 - len(features)
     #features = np.hstack((features, np.repeat(1000, to_fill)))
     features = np.hstack((features, np.repeat(-1, to_fill)))
-    return features
+    return features.reshape(1, -1)
 
     # For example, you could construct several channels of equal shape, ...
     #channels = []
