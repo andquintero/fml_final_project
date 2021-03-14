@@ -93,22 +93,22 @@ def state_to_features(game_state: dict) -> np.array:
     # define function for BFS
     # https://www.geeksforgeeks.org/building-an-undirected-graph-and-finding-shortest-path-using-dictionaries-in-python/
     def BFS_SP(graph, start, goal): 
-    explored = [] 
-    queue = [[start]] 
-    if start == goal: 
-        return 0
-    while queue: 
-        path = queue.pop(0) 
-        node = path[-1] 
-        if node not in explored: 
-            neighbours = graph[node] 
-            for neighbour in neighbours: 
-                new_path = list(path) 
-                new_path.append(neighbour) 
-                queue.append(new_path) 
-                if neighbour == goal: 
-                    return len(new_path)-1
-            explored.append(node) 
+        explored = [] 
+        queue = [[start]] 
+        if start == goal: 
+            return 0
+        while queue: 
+            path = queue.pop(0) 
+            node = path[-1] 
+            if node not in explored: 
+                neighbours = graph[node] 
+                for neighbour in neighbours: 
+                    new_path = list(path) 
+                    new_path.append(neighbour) 
+                    queue.append(new_path) 
+                    if neighbour == goal: 
+                        return len(new_path)-1
+                explored.append(node) 
 
     # calculate distance to each coin
     coin_dist = np.sort(np.array([BFS_SP(graph, location, coin) for coin in coins]))
