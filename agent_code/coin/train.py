@@ -6,6 +6,19 @@ from typing import List
 import events as e
 from .callbacks import state_to_features
 
+#------------------------------------------------------------------------------#
+# Imported by us
+import numpy as np
+from sklearn.multioutput import MultiOutputRegressor
+#from sklearn.ensemble import GradientBoostingRegressor
+# HistGradientBoostingRegressor is still experimental requieres:
+# explicitly require this experimental feature
+from sklearn.experimental import enable_hist_gradient_boosting  # noqa
+# now you can import normally from ensemble
+from sklearn.ensemble import HistGradientBoostingRegressor
+#------------------------------------------------------------------------------#
+
+
 # This is only an example!
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
@@ -26,6 +39,15 @@ def setup_training(self):
 
     :param self: This object is passed to all callbacks and you can set arbitrary values.
     """
+    # Start GradientBoostingRegressor for every action
+    #self.actionRegressor = MultiOutputRegressor(HistGradientBoostingRegressor())
+    # If starting training from scratch, there is no data
+    # Initial guess, agent is in the bottom right corner and moved up or left
+    #ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT']
+    guess_init_reward = np.array([-1, -10, -10, -1]).reshape(1, -1)
+    guess_init_state  = np.array([0, -1,  -1, 0,  5,  7, 11, 14, 16, 16, 18, 19, 25]).reshape(1, -1)
+    self.model.fit(guess_init_state, guess_init_reward)
+
     # Example: Setup an array that will note transition tuples
     # (s, a, r, s')
     self.transitions = deque(maxlen=TRANSITION_HISTORY_SIZE)
@@ -48,7 +70,8 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     :param new_game_state: The state the agent is in now.
     :param events: The events that occurred when going from  `old_game_state` to `new_game_state`
     """
-    print("Events, train: ", events)
+    #print("Events, train: ", events)
+    #print("self.actionRegressor:", self.model)
 
     self.logger.debug(f'Encountered game event(s) {", ".join(map(repr, events))} in step {new_game_state["step"]}')
 

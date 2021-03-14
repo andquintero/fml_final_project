@@ -4,8 +4,20 @@ import random
 
 import numpy as np
 
+#------------------------------------------------------------------------------#
+# Imported by us
+from sklearn.multioutput import MultiOutputRegressor
+#from sklearn.ensemble import GradientBoostingRegressor
+# HistGradientBoostingRegressor is still experimental requieres:
+# explicitly require this experimental feature
+from sklearn.experimental import enable_hist_gradient_boosting  # noqa
+# now you can import normally from ensemble
+from sklearn.ensemble import HistGradientBoostingRegressor
+#------------------------------------------------------------------------------#
 
-ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
+
+#ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
+ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT']
 
 
 def setup(self):
@@ -24,8 +36,13 @@ def setup(self):
     """
     if self.train or not os.path.isfile("my-saved-model.pt"):
         self.logger.info("Setting up model from scratch.")
-        weights = np.random.rand(len(ACTIONS))
-        self.model = weights / weights.sum()
+        #weights = np.random.rand(len(ACTIONS))
+        #self.model = weights / weights.sum()
+
+        # Start GradientBoostingRegressor for every action
+        reg = HistGradientBoostingRegressor()
+        self.model = MultiOutputRegressor(reg)
+
     else:
         self.logger.info("Loading model from saved state.")
         with open("my-saved-model.pt", "rb") as file:
@@ -42,17 +59,24 @@ def act(self, game_state: dict) -> str:
     :return: The action to take as a string.
     """
     # todo Exploration vs exploitation
-    print(game_state['field'])
-    print(game_state['coins'])
-    print(game_state['self'])
+    # print('game_state[field]:', game_state['field'])
+    # print('game_state[coins]:', game_state['coins'])
+    # print('game_state[self]:', game_state['self'])
     random_prob = .1
     if self.train and random.random() < random_prob:
         self.logger.debug("Choosing action purely at random.")
         # 80%: walk in any direction. 10% wait. 10% bomb.
-        return np.random.choice(ACTIONS, p=[.2, .2, .2, .2, .1, .1])
+        return np.random.choice(ACTIONS, p=[.25, .25, .25, .25])
 
     self.logger.debug("Querying model for action.")
-    return np.random.choice(ACTIONS, p=self.model)
+    #return np.random.choice(ACTIONS, p=self.model)
+    current_features = state_to_features(game_state).reshape(1, -1)
+    print('state_to_features:', current_features)
+    model_prediction = self.model.predict(current_features)
+    print('model predict:', np.argmax(model_prediction))
+    #return np.random.choice(ACTIONS, p=[.25, .25, .25, .25])
+    
+    return ACTIONS[np.argmax(model_prediction)]
 
 
 def state_to_features(game_state: dict) -> np.array:
@@ -79,7 +103,11 @@ def state_to_features(game_state: dict) -> np.array:
     name, score, bomb, location = game_state['self']
 
     # agent movements (north - east - south - west)
-    area = [(0,1), (1,0), (0,-1), (-1,0)]
+    #area = [(0,1), (1,0), (0,-1), (-1,0)]
+    # agent movements (down - right - top - left)
+    #area = [(0,1), (1,0), (0,-1), (-1,0)]
+    # agent movements (top - left - down - right)
+    area = [(0,-1), (1,0), (0,1), (-1,0)]
 
     # create graph for possible movements through the field
     x_0, y_0 = np.where(field == 0)
@@ -122,7 +150,8 @@ def state_to_features(game_state: dict) -> np.array:
     # (if a coin is already collected, its distance is set to 1000)
     features = np.hstack((sur_val, coin_dist))
     to_fill = 13 - len(features)
-    features = np.hstack((features, np.repeat(1000, to_fill)))
+    #features = np.hstack((features, np.repeat(1000, to_fill)))
+    features = np.hstack((features, np.repeat(-1, to_fill)))
     return features
 
     # For example, you could construct several channels of equal shape, ...
