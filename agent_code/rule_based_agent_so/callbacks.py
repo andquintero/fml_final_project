@@ -313,7 +313,7 @@ def look_for_targets_dist(free_space, start, targets, logger=None):
     #print('current: ', current)
     #print('start: ', start)
     #dis = np.sqrt(np.sum((np.array(start) - np.array(current))**2))
-    dis = np.array(start) - np.array(current)
+    dis = np.array(current) - np.array(start)
     #print('dis:', np.hstack((dis, best_dist)))
     #return (current, dis)
     dis = np.hstack((dis, best_dist))

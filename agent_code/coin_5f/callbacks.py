@@ -65,7 +65,7 @@ def act(self, game_state: dict) -> str:
     # print('game_state[field]:', game_state['field'])
     # print('game_state[coins]:', game_state['coins'])
     # print('game_state[self]:', game_state['self'])
-    random_prob = .1
+    random_prob = .7
     if self.train and random.random() < random_prob:
         self.logger.debug("Choosing action purely at random.")
         # 80%: walk in any direction. 10% wait. 10% bomb.
@@ -186,7 +186,8 @@ def look_for_targets_dist(free_space, start, targets, logger=None):
     #print('current: ', current)
     #print('start: ', start)
     #dis = np.sqrt(np.sum((np.array(start) - np.array(current))**2))
-    dis = np.array(start) - np.array(current)
+    #dis = np.array(start) - np.array(current)
+    dis = np.array(current) - np.array(start)
     #print('dis:', np.hstack((dis, best_dist)))
     #return (current, dis)
     dis = np.hstack((dis, best_dist))

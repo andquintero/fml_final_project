@@ -163,7 +163,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.rewards = np.vstack((self.rewards, reward))
     self.action = np.vstack((self.action, idx_action))
 
-
+    update_Q_values(self)
     # Remove duplicated states and actions pairs
     _, unique_pairs = np.unique(np.hstack((self.trainingXold, self.trainingXnew, self.trainingQ, self.action)), axis=0, return_index=True)
     #_, unique_pairs = np.unique(np.hstack((self.trainingXold, self.action)), axis=0, return_index=True)
@@ -180,7 +180,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     # print('self.rewards:', self.rewards.shape)
     # print('self.action:', self.action.shape)
     
-    update_Q_values(self)
+    #update_Q_values(self)
     self.model.fit(self.trainingXold, np.nan_to_num(self.trainingQ))
     
     #Save
@@ -197,8 +197,8 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     with open("my-saved-model.pt", "wb") as file:
         pickle.dump(self.model, file)
 
-    print('self.trainingXold:', self.trainingXold.shape)
-    print("End of round")
+    #print('self.trainingXold:', self.trainingXold.shape)
+    print("End of round, step:", last_game_state['step'])
 
 
 
