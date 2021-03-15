@@ -68,19 +68,25 @@ def setup_training(self):
     """
     
     if not os.path.isfile("trainingX.npy"):
-        # If starting training from scratch, there is no data
-        # Initial guess, agent is in the bottom right corner and moved up or left
-        #ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT']
-        guess_init_reward = np.array([-1, -10, -10, -1]).reshape(1, -1)
-        guess_init_state  = np.array([0, -1,  -1, 0,  5,  7, 11, 14, 16, 16, 18, 19, 25]).reshape(1, -1)
-        #guess_init_state  = np.array([0, -1,  -1, 0,  -1,  -1, -1,  -1, -1,  -1, -1,  -1, -1]).reshape(1, -1)
-        aug_state, aug_rewards = augment_features(guess_init_state, guess_init_reward)
+        # If starting training from scratch, load dta searned by the rule based agent
+        self.trainingX = np.load('initial_guess/trainingX.npy')
+        self.trainingQ = np.load('initial_guess/trainingQ.npy')
+        self.actionSequence = np.load('initial_guess/actionSequence.npy')
+        self.rewards = np.load('initial_guess/rewards.npy')
 
-        self.trainingX = aug_state
-        self.trainingQ = aug_rewards
-        # Create table indicating the index of the state and action
-        self.actionSequence = np.empty((0,2))
-        self.rewards = np.empty((0,1))
+        # # If starting training from scratch, there is no data
+        # # Initial guess, agent is in the bottom right corner and moved up or left
+        # #ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT']
+        # guess_init_reward = np.array([-1, -10, -10, -1]).reshape(1, -1)
+        # guess_init_state  = np.array([0, -1,  -1, 0,  5,  7, 11, 14, 16, 16, 18, 19, 25]).reshape(1, -1)
+        # #guess_init_state  = np.array([0, -1,  -1, 0,  -1,  -1, -1,  -1, -1,  -1, -1,  -1, -1]).reshape(1, -1)
+        # aug_state, aug_rewards = augment_features(guess_init_state, guess_init_reward)
+
+        # self.trainingX = aug_state
+        # self.trainingQ = aug_rewards
+        # # Create table indicating the index of the state and action
+        # self.actionSequence = np.empty((0,2))
+        # self.rewards = np.empty((0,1))
     else:
         self.trainingX = np.load('trainingX.npy')
         self.trainingQ = np.load('trainingQ.npy')

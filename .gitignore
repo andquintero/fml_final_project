@@ -1,5 +1,10 @@
 # Train
 **/my-saved-model.pt
+**/actionSequence.npy
+**/initial_guess/
+**/rewards.npy
+**/trainingQ.npy
+**/trainingX.npy
 
 # Mac
 **/.DS_Store
