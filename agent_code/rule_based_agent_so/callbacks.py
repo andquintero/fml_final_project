@@ -275,7 +275,8 @@ def look_for_targets_dist(free_space, start, targets, logger=None):
     Returns:
         coordinate of first step towards closest target or towards tile closest to any target.
     """
-    if len(targets) == 0: return None
+    #if len(targets) == 0: return None
+    if len(targets) == 0: return np.zeros((3)) 
 
     frontier = [start]
     parent_dict = {start: start}
@@ -315,4 +316,6 @@ def look_for_targets_dist(free_space, start, targets, logger=None):
     dis = np.array(start) - np.array(current)
     #print('dis:', np.hstack((dis, best_dist)))
     #return (current, dis)
+    dis = np.hstack((dis, best_dist))
+    #return dis if dis is not None else np.zeros((1,3)) 
     return dis

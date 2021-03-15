@@ -65,7 +65,7 @@ def act(self, game_state: dict) -> str:
     # print('game_state[field]:', game_state['field'])
     # print('game_state[coins]:', game_state['coins'])
     # print('game_state[self]:', game_state['self'])
-    random_prob = .1
+    random_prob = .8
     if self.train and random.random() < random_prob:
         self.logger.debug("Choosing action purely at random.")
         # 80%: walk in any direction. 10% wait. 10% bomb.
