@@ -34,30 +34,6 @@ RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
 # Events
 PLACEHOLDER_EVENT = "PLACEHOLDER"
 
-def augment_features(features, rewards):
-    """
-    Augment one set of features by rotating in all 4 positble directions
-
-    :param features: the free tiles information is given in the first 4 position of the array
-                     top, right, down, left
-
-
-    """
-    augmented_feat = np.tile(features, (4,1))
-    augmented_feat[1, 0:4] = features[0, [3,0,1,2]] # rotate 90 clockwise
-    augmented_feat[2, 0:4] = features[0, [2,3,0,1]] # rotate 180 clockwise
-    augmented_feat[3, 0:4] = features[0, [1,2,3,0]] # rotate 270 clockwise
-    #print('augmented_feat', augmented_feat)
-
-    augmented_rewards = np.tile(rewards, (4,1))
-    augmented_rewards[1, 0:4] = rewards[0, [3,0,1,2]] # rotate 90 clockwise
-    augmented_rewards[2, 0:4] = rewards[0, [2,3,0,1]] # rotate 180 clockwise
-    augmented_rewards[3, 0:4] = rewards[0, [1,2,3,0]] # rotate 270 clockwise
-    #print('augmented_rewards', augmented_rewards)
-
-    return (augmented_feat, augmented_rewards)
-
-
 def setup_training(self):
     """
     Initialise self for training purpose.
@@ -97,8 +73,6 @@ def setup_training(self):
 
     #self.model.fit(self.trainingX, self.trainingQ)
     self.model.fit(self.trainingX, np.nan_to_num(self.trainingQ))
-
-    
 
     # Example: Setup an array that will note transition tuples
     # (s, a, r, s')
@@ -171,7 +145,7 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     # Create table indicating the index of the state and action
     self.actionSequence = np.vstack((self.actionSequence, np.array([[idx_s, idx_action]])))
     self.rewards = np.vstack((self.rewards, reward))
-    #print('rewards :', reward)
+    print('rewards :', reward)
     #print('self_action :', self.actionSequence)
 
     #if new_game_state['step'] > 2:
@@ -223,8 +197,6 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.actionSequence = np.vstack((self.actionSequence, np.array([[idx_s, idx_action]])))
     self.rewards = np.vstack((self.rewards, reward))
 
-    print("train self.trainingQ:", self.trainingQ.shape)
-    print("End of round")
     update_Q_values(self)
     self.model.fit(self.trainingX, np.nan_to_num(self.trainingQ))
 
@@ -234,6 +206,9 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     np.save('rewards.npy', self.rewards)
     np.save('trainingQ.npy', self.trainingQ)
     np.save('actionSequence.npy', self.actionSequence)
+    
+    print("train self.trainingQ:", self.trainingQ.shape)
+    print("End of round")
 
     # Store the model
     with open("my-saved-model.pt", "wb") as file:
@@ -252,7 +227,7 @@ def reward_from_events(self, events: List[str]) -> int:
         e.MOVED_RIGHT : -1,
         e.MOVED_UP    : -1,
         e.MOVED_DOWN  : -1,
-        e.INVALID_ACTION : -10,
+        e.INVALID_ACTION : -100,
 
         e.COIN_COLLECTED : 100
         #e.TIME_TO_COIN : 100
@@ -298,7 +273,8 @@ def update_Q_values(self):
             #print('iddddd+1', self.actionSequence[i+1, :])
             idx = self.actionSequence[i, :].astype(int)
             q_old = np.nan_to_num(self.trainingQ[idx[0], idx[1]])
-            reward = self.rewards[i+1]
+            #reward = self.rewards[i+1]
+            reward = self.rewards[i]
             
             #new_features = self.trainingX[idx[0]+1].reshape(1, -1)
             new_features = self.trainingX[self.actionSequence[i+1, 0].astype(int)].reshape(1, -1)

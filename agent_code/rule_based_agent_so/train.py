@@ -13,7 +13,7 @@ import os
 import numpy as np
 
 #------------------------------------------------------------------------------#
-
+RESTART = False
 
 # This is only an example!
 Transition = namedtuple('Transition',
@@ -36,7 +36,7 @@ def setup_training(self):
     :param self: This object is passed to all callbacks and you can set arbitrary values.
     """
     
-    if not os.path.isfile("trainingX.npy"):
+    if not os.path.isfile("trainingX.npy") or RESTART:
         # If starting training from scratch, there is no data
         self.trainingX = np.empty((0,6))
         self.trainingQ = np.empty((0,4))
@@ -140,6 +140,16 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.actionSequence = np.vstack((self.actionSequence, np.array([[idx_s, idx_action]])))
     self.rewards = np.vstack((self.rewards, reward))
 
+    for i in range(len(self.actionSequence)):
+        idx = self.actionSequence[i]
+        if not np.isnan(idx[0]):
+            idx = idx.astype(int)
+            #print("idx: ", idx)
+            #print("idx: ", type(idx[0]))
+            for j in range(self.trainingQ.shape[1]):
+                if np.isnan(self.trainingQ[idx[0], j]) and self.trainingX[idx[0], j] == -1:
+                    self.trainingQ[idx[0], j] == -100
+
     
     # print('Training step:', last_game_state['step'])
     # print('trainingX.', self.trainingX)
@@ -170,7 +180,7 @@ def reward_from_events(self, events: List[str]) -> int:
         e.MOVED_RIGHT : -1,
         e.MOVED_UP    : -1,
         e.MOVED_DOWN  : -1,
-        e.INVALID_ACTION : -10,
+        e.INVALID_ACTION : -100,
 
         e.COIN_COLLECTED : 100
         #e.TIME_TO_COIN : 100
