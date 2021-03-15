@@ -65,7 +65,7 @@ def act(self, game_state: dict) -> str:
     # print('game_state[field]:', game_state['field'])
     # print('game_state[coins]:', game_state['coins'])
     # print('game_state[self]:', game_state['self'])
-    random_prob = .8
+    random_prob = .1
     if self.train and random.random() < random_prob:
         self.logger.debug("Choosing action purely at random.")
         # 80%: walk in any direction. 10% wait. 10% bomb.
@@ -148,7 +148,8 @@ def look_for_targets_dist(free_space, start, targets, logger=None):
     Returns:
         coordinate of first step towards closest target or towards tile closest to any target.
     """
-    if len(targets) == 0: return None
+    #if len(targets) == 0: return None
+    if len(targets) == 0: return np.zeros((3)) 
 
     frontier = [start]
     parent_dict = {start: start}
@@ -188,4 +189,6 @@ def look_for_targets_dist(free_space, start, targets, logger=None):
     dis = np.array(start) - np.array(current)
     #print('dis:', np.hstack((dis, best_dist)))
     #return (current, dis)
+    dis = np.hstack((dis, best_dist))
+    #return dis if dis is not None else np.zeros((1,3)) 
     return dis
