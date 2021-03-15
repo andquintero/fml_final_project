@@ -75,7 +75,7 @@ def act(self, game_state: dict) -> str:
     current_features = state_to_features(game_state)
     #print('state_to_features:', current_features)
     model_pred = self.model.predict(current_features)
-    print('model predict:', model_pred)
+    #print('model predict:', model_pred)
     #return np.random.choice(ACTIONS, p=[.25, .25, .25, .25])
     
     
@@ -110,7 +110,7 @@ def state_to_features(game_state: dict) -> np.array:
     #area = [(0,1), (1,0), (0,-1), (-1,0)]
     # agent movements (down - right - top - left)
     #area = [(0,1), (1,0), (0,-1), (-1,0)]
-    # agent movements (top - left - down - right)
+    # agent movements (top - right - down - left)
     area = [(0,-1), (1,0), (0,1), (-1,0)]
 
     # create graph for possible movements through the field
