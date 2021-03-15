@@ -234,62 +234,85 @@ def state_to_features(game_state: dict) -> np.array:
     coins = game_state['coins']
     name, score, bomb, location = game_state['self']
 
-    # agent movements (north - east - south - west)
-    #area = [(0,1), (1,0), (0,-1), (-1,0)]
-    # agent movements (down - right - top - left)
-    #area = [(0,1), (1,0), (0,-1), (-1,0)]
     # agent movements (top - right - down - left)
     area = [(0,-1), (1,0), (0,1), (-1,0)]
-
-    # create graph for possible movements through the field
-    x_0, y_0 = np.where(field == 0)
-    zero_vals = [(x_0[i], y_0[i]) for i in range(len(x_0))]
-    targets = []
-    for coord in zero_vals:
-        pb = [tuple(map(sum, zip(coord, n))) for n in area]
-        targets.append([x for x in pb if x in zero_vals])
-    graph = dict(zip(zero_vals, targets))
-
-    # define function for BFS
-    # https://www.geeksforgeeks.org/building-an-undirected-graph-and-finding-shortest-path-using-dictionaries-in-python/
-    def BFS_SP(graph, start, goal): 
-        explored = [] 
-        queue = [[start]] 
-        if start == goal: 
-            return 0
-        while queue: 
-            path = queue.pop(0) 
-            node = path[-1] 
-            if node not in explored: 
-                neighbours = graph[node] 
-                for neighbour in neighbours: 
-                    new_path = list(path) 
-                    new_path.append(neighbour) 
-                    queue.append(new_path) 
-                    if neighbour == goal: 
-                        return len(new_path)-1
-                explored.append(node) 
-
-    # calculate distance to each coin
-    coin_dist = np.sort(np.array([BFS_SP(graph, location, coin) for coin in coins]))
-
     # get info for the surroundings of the agent (N-E-S-W)
     sur = [tuple(map(sum, zip(location, n))) for n in area]
     sur_val = np.array([field[c[0], c[1]] for c in sur])
 
+    # Find next coin
+    #print('coins: ', coins)
+    free_space = field == 0
+
+    #print('next coin dir: ', look_for_targets_dist(free_space, location, coins))
+    best_coin_dist = look_for_targets_dist(free_space, location, coins)
+    #d = look_for_targets(free_space, (x, y), targets, self.logger)
+    #look_for_targets(free_space, start, targets, logger=None)
+
     # define features 
     # we have 13 features in total (4 fields next to the agent) and distances to all coins starting with the closest
-    # (if a coin is already collected, its distance is set to 1000)
-    features = np.hstack((sur_val, coin_dist))
-    to_fill = 13 - len(features)
-    #features = np.hstack((features, np.repeat(1000, to_fill)))
-    features = np.hstack((features, np.repeat(-1, to_fill)))
+
+    #print("h1: ", sur_val)
+    #print("h1: ", best_coin_dist)
+    
+    features = np.hstack((sur_val, best_coin_dist))
+    #features = sur_val
+    #to_fill = 13 - len(features)
+    
     return features.reshape(1, -1)
 
-    # For example, you could construct several channels of equal shape, ...
-    #channels = []
-    #channels.append(...)
-    # concatenate them as a feature tensor (they must have the same shape), ...
-    #stacked_channels = np.stack(channels)
-    # and return them as a vector
-    #return stacked_channels.reshape(-1)
+def look_for_targets_dist(free_space, start, targets, logger=None):
+    """Find direction of closest target that can be reached via free tiles.
+
+    Performs a breadth-first search of the reachable free tiles until a target is encountered.
+    If no target can be reached, the path that takes the agent closest to any target is chosen.
+
+    Args:
+        free_space: Boolean numpy array. True for free tiles and False for obstacles.
+        start: the coordinate from which to begin the search.
+        targets: list or array holding the coordinates of all target tiles.
+        logger: optional logger object for debugging.
+    Returns:
+        coordinate of first step towards closest target or towards tile closest to any target.
+    """
+    if len(targets) == 0: return None
+
+    frontier = [start]
+    parent_dict = {start: start}
+    dist_so_far = {start: 0}
+    best = start
+    best_dist = np.sum(np.abs(np.subtract(targets, start)), axis=1).min()
+
+    while len(frontier) > 0:
+        current = frontier.pop(0)
+        # Find distance from current position to all targets, track closest
+        d = np.sum(np.abs(np.subtract(targets, current)), axis=1).min()
+        if d + dist_so_far[current] <= best_dist:
+            best = current
+            best_dist = d + dist_so_far[current]
+        if d == 0:
+            # Found path to a target's exact position, mission accomplished!
+            best = current
+            break
+        # Add unexplored free neighboring tiles to the queue in a random order
+        x, y = current
+        neighbors = [(x, y) for (x, y) in [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)] if free_space[x, y]]
+        shuffle(neighbors)
+        for neighbor in neighbors:
+            if neighbor not in parent_dict:
+                frontier.append(neighbor)
+                parent_dict[neighbor] = current
+                dist_so_far[neighbor] = dist_so_far[current] + 1
+    if logger: logger.debug(f'Suitable target found at {best}')
+    # Determine the first step towards the best found target tile
+    current = best
+    #while True:
+    #    if parent_dict[current] == start: return current
+    #    current = parent_dict[current]
+    #print('current: ', current)
+    #print('start: ', start)
+    #dis = np.sqrt(np.sum((np.array(start) - np.array(current))**2))
+    dis = np.array(start) - np.array(current)
+    #print('dis:', np.hstack((dis, best_dist)))
+    #return (current, dis)
+    return dis

@@ -163,6 +163,8 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
             self.trainingQ[idx_s, idx_action] = reward
         else:
             idx_s = idx_s[0]
+            if np.isnan(self.trainingQ[idx_s, idx_action]):
+                self.trainingQ[idx_s, idx_action] = reward
     else:
         idx_s = np.nan
         

@@ -38,7 +38,7 @@ def setup_training(self):
     
     if not os.path.isfile("trainingX.npy"):
         # If starting training from scratch, there is no data
-        self.trainingX = np.empty((0,13))
+        self.trainingX = np.empty((0,6))
         self.trainingQ = np.empty((0,4))
         # Create table indicating the index of the state and action
         self.actionSequence = np.empty((0,2))
@@ -67,7 +67,7 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     :param new_game_state: The state the agent is in now.
     :param events: The events that occurred when going from  `old_game_state` to `new_game_state`
     """
-
+    
     #### WARNING
     # There is a bug in the main code, and the new_game_state is actually the old_game_state
     reward = reward_from_events(self, events)
@@ -75,7 +75,10 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     new_features = state_to_features(new_game_state)
     
     # Index: find if state was already present in dataset
-    idx_s = ((self.trainingX == new_features).all(axis=1).nonzero())[0]
+    if len(self.trainingX) > 0:
+        idx_s = ((self.trainingX == new_features).all(axis=1).nonzero())[0]
+    else:
+        idx_s = []
     idx_action = ACTIONS.index(self_action) if self_action is not None else np.nan
     
     if new_game_state['step'] > 1:
@@ -87,6 +90,8 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
             self.trainingQ[idx_s, idx_action] = reward
         else:
             idx_s = idx_s[0]
+            if np.isnan(self.trainingQ[idx_s, idx_action]):
+                self.trainingQ[idx_s, idx_action] = reward
     else:
         idx_s = np.nan
         
