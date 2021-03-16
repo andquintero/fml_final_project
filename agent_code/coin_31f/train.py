@@ -22,7 +22,6 @@ from lightgbm import LGBMRegressor
 #from sklearn.ensemble import HistGradientBoostingRegressor
 #------------------------------------------------------------------------------#
 
-
 # This is only an example!
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
@@ -124,7 +123,7 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         #print(self.model.predict(self.trainingXold).shape)
 
         # Idea: Add your own events to hand out rewards
-        if sum(np.isnan(self.trainingXnew[-1,:])) == sum(np.isnan(self.trainingXold[-1,:]))
+        if sum(np.isnan(self.trainingXnew[-1,:])) == sum(np.isnan(self.trainingXold[-1,:])):
             if self.trainingXnew[-1, 4] < self.trainingXold[-1, 4]:
                 events.append(e.MOVED_TOWARDS_COIN)
             else:
@@ -156,10 +155,18 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
 
     # Add final state
     idx_action = ACTIONS.index(last_action)
-    reward = reward_from_events(self, events)
+    #reward = reward_from_events(self, events)
     
     self.trainingXold = np.vstack((self.trainingXold, self.trainingXnew[-1]))
     self.trainingXnew = np.vstack((self.trainingXnew, state_to_features(last_game_state)))
+
+    # Idea: Add your own events to hand out rewards
+    if sum(np.isnan(self.trainingXnew[-1,:])) == sum(np.isnan(self.trainingXold[-1,:])):
+        if self.trainingXnew[-1, 4] < self.trainingXold[-1, 4]:
+            events.append(e.MOVED_TOWARDS_COIN)
+        else:
+            events.append(e.MOVED_AWAY_FROM_COIN)
+    reward = reward_from_events(self, events)
     
     # add reward as Q value
     empty_Q = np.full((1,len(ACTIONS)), np.nan)

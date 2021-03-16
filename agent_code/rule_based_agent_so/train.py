@@ -77,36 +77,47 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     :param new_game_state: The state the agent is in now.
     :param events: The events that occurred when going from  `old_game_state` to `new_game_state`
     """
-    
+    #print("Events, train: ", events)
+    #print("self.actionRegressor:", self.model)
+
+    self.logger.debug(f'Encountered game event(s) {", ".join(map(repr, events))} in step {new_game_state["step"]}')
+
+    # state_to_features is defined in callbacks.py
+    # self.transitions.append(Transition(state_to_features(old_game_state), self_action, state_to_features(new_game_state), reward_from_events(self, events)))
+
     #### WARNING
     # There is a bug in the main code, and the new_game_state is actually the old_game_state
-    reward = reward_from_events(self, events)
+    
     #old_features = state_to_features(old_game_state)
-    new_features = state_to_features(new_game_state)
+    #new_features = state_to_features(new_game_state)
     
     # Index: find if state was already present in dataset
     
     if new_game_state['step'] > 1:
+
         idx_action = ACTIONS.index(self_action)
 
         # add old and new state
         self.trainingXold = np.vstack((self.trainingXold, state_to_features(old_game_state)))
         self.trainingXnew = np.vstack((self.trainingXnew, state_to_features(new_game_state)))
+
+        #print(self.model.fit(self.trainingXold, self.trainingQ))
+        #print(self.model.predict(self.trainingXold).shape)
+
+        # Idea: Add your own events to hand out rewards
+        if sum(np.isnan(self.trainingXnew[-1,:])) == sum(np.isnan(self.trainingXold[-1,:])):
+            if self.trainingXnew[-1, 4] < self.trainingXold[-1, 4]:
+                events.append(e.MOVED_TOWARDS_COIN)
+            else:
+                events.append(e.MOVED_AWAY_FROM_COIN)
+        reward = reward_from_events(self, events)
         # add reward as Q value
-        #empty_Q = np.zeros((1,len(ACTIONS)))
-        empty_Q = np.full((1,len(ACTIONS)), np.nan)
+        empty_Q = np.zeros((1,len(ACTIONS)))
         self.trainingQ = np.vstack((self.trainingQ, empty_Q))
         self.trainingQ[-1, idx_action] = reward
         # add action and reward
         self.rewards = np.vstack((self.rewards, reward))
         self.action = np.vstack((self.action, idx_action))
-        
-    
-    # print('Training step:', new_game_state['step'])
-    #print('trainingXold.', self.trainingXold)
-    # print('rewards.', self.rewards)
-    # print('trainingQ.', self.trainingQ)
-    # print('actionSequence.', self.actionSequence)
     
 
 
@@ -128,10 +139,20 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
 
     # Add final state
     idx_action = ACTIONS.index(last_action)
-    reward = reward_from_events(self, events)
+    #reward = reward_from_events(self, events)
     
     self.trainingXold = np.vstack((self.trainingXold, self.trainingXnew[-1]))
     self.trainingXnew = np.vstack((self.trainingXnew, state_to_features(last_game_state)))
+
+    # Idea: Add your own events to hand out rewards
+    if sum(np.isnan(self.trainingXnew[-1,:])) == sum(np.isnan(self.trainingXold[-1,:])):
+        if self.trainingXnew[-1, 4] < self.trainingXold[-1, 4]:
+            events.append(e.MOVED_TOWARDS_COIN)
+        else:
+            events.append(e.MOVED_AWAY_FROM_COIN)
+    reward = reward_from_events(self, events)
+
+
     
     # add reward as Q value
     empty_Q = np.zeros((1,len(ACTIONS)))
@@ -184,6 +205,8 @@ def reward_from_events(self, events: List[str]) -> int:
         e.MOVED_DOWN  : -1,
         e.INVALID_ACTION : -100,
 
+        e.MOVED_AWAY_FROM_COIN : -20,
+        e.MOVED_TOWARDS_COIN : 10,
         e.COIN_COLLECTED : 100
         #e.TIME_TO_COIN : 100
         #e.KILLED_OPPONENT: 5,
