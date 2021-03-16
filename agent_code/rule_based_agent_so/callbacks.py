@@ -244,8 +244,31 @@ def state_to_features(game_state: dict) -> np.array:
     #print('coins: ', coins)
     free_space = field == 0
 
+    # Distance to all coins
+    graph = make_field_graph(field)
+    if len(coins)>0:
+        # calculate distance to each coin
+        coin_dist = np.array([BFS_SP(graph, location, coin) for coin in coins])
+        coin_reldis = np.array(coins) - np.array(location)[None,]
+        idx = np.argsort(coin_dist)
+        coinf = np.hstack((coin_dist[idx, None], coin_reldis[idx, :])).flatten()
+    else:
+        coinf = []
+
+    to_fill = 9*3 - len(coinf)
+    coinf = np.hstack((coinf, np.repeat(np.nan, to_fill)))
+
+
+    #print('coin f', coinf)
+    
+
+
+
+
     #print('next coin dir: ', look_for_targets_dist(free_space, location, coins))
-    best_coin_dist = look_for_targets_dist(free_space, location, coins)
+    #best_coin_dist = look_for_targets_dist(free_space, location, coins)
+    
+    
     #d = look_for_targets(free_space, (x, y), targets, self.logger)
     #look_for_targets(free_space, start, targets, logger=None)
 
@@ -255,7 +278,9 @@ def state_to_features(game_state: dict) -> np.array:
     #print("h1: ", sur_val)
     #print("h1: ", best_coin_dist)
     
-    features = np.hstack((sur_val, best_coin_dist))
+    #features = np.hstack((sur_val, best_coin_dist))
+    features = np.hstack((sur_val, coinf))
+    
     #features = sur_val
     #to_fill = 13 - len(features)
     
@@ -283,9 +308,11 @@ def look_for_targets_dist(free_space, start, targets, logger=None):
     dist_so_far = {start: 0}
     best = start
     best_dist = np.sum(np.abs(np.subtract(targets, start)), axis=1).min()
-
+    #print('coin len:', len(targets))
+    
     while len(frontier) > 0:
         current = frontier.pop(0)
+        #print('coin current:', current)
         # Find distance from current position to all targets, track closest
         d = np.sum(np.abs(np.subtract(targets, current)), axis=1).min()
         if d + dist_so_far[current] <= best_dist:
@@ -293,6 +320,7 @@ def look_for_targets_dist(free_space, start, targets, logger=None):
             best_dist = d + dist_so_far[current]
         if d == 0:
             # Found path to a target's exact position, mission accomplished!
+            #print('coin dist:', d + dist_so_far[current])
             best = current
             break
         # Add unexplored free neighboring tiles to the queue in a random order
@@ -319,3 +347,48 @@ def look_for_targets_dist(free_space, start, targets, logger=None):
     dis = np.hstack((dis, best_dist))
     #return dis if dis is not None else np.zeros((1,3)) 
     return dis
+
+
+# define function for BFS
+# https://www.geeksforgeeks.org/building-an-undirected-graph-and-finding-shortest-path-using-dictionaries-in-python/
+def BFS_SP(graph, start, goal): 
+    explored = [] 
+    queue = [[start]] 
+    if start == goal: 
+        return 0
+    while queue: 
+        path = queue.pop(0) 
+        node = path[-1] 
+        if node not in explored: 
+            neighbours = graph[node] 
+            for neighbour in neighbours: 
+                new_path = list(path) 
+                new_path.append(neighbour) 
+                queue.append(new_path) 
+                if neighbour == goal: 
+                    return len(new_path)-1
+            explored.append(node) 
+
+def make_field_graph(field):
+    """
+    Takes as input the field and returns a graph representation
+
+    :param field:  np.array
+    :return: dict
+    """
+    field
+
+    # agent movements (top - right - down - left)
+    area = [(0,-1), (1,0), (0,1), (-1,0)]
+
+    # create graph for possible movements through the field
+    x_0, y_0 = np.where(field == 0)
+    zero_vals = [(x_0[i], y_0[i]) for i in range(len(x_0))]
+    targets = []
+    for coord in zero_vals:
+        pb = [tuple(map(sum, zip(coord, n))) for n in area]
+        targets.append([x for x in pb if x in zero_vals])
+    
+    return dict(zip(zero_vals, targets))    
+
+    

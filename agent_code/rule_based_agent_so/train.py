@@ -13,8 +13,8 @@ import os
 import numpy as np
 
 #------------------------------------------------------------------------------#
-#RESTART = True
-RESTART = False
+RESTART = True
+#RESTART = False
 
 # This is only an example!
 Transition = namedtuple('Transition',
@@ -39,8 +39,8 @@ def setup_training(self):
     
     if not os.path.isfile("initial_guess/trainingXold.npy") or RESTART:
         # If starting training from scratch, there is no data
-        self.trainingXold = np.empty((0,7))
-        self.trainingXnew = np.empty((0,7))
+        self.trainingXold = np.empty((0,31))
+        self.trainingXnew = np.empty((0,31))
         self.trainingQ = np.empty((0,4))
         self.rewards = np.empty((0,1))
         self.action = np.empty((0,1))
@@ -102,7 +102,7 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         
     
     # print('Training step:', new_game_state['step'])
-    # print('trainingX.', self.trainingX)
+    #print('trainingXold.', self.trainingXold)
     # print('rewards.', self.rewards)
     # print('trainingQ.', self.trainingQ)
     # print('actionSequence.', self.actionSequence)
