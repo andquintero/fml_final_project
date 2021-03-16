@@ -46,7 +46,8 @@ class MultiRegression():
         '''
         predict from a new set of features
         '''
-        y = [self.fitted[i].predict(testX) for i in range(len(self.fitted))]
+        #y = [self.fitted[i].predict(testX) for i in range(len(self.fitted))]
+        y = [regfitted.predict(testX) for regfitted in self.fitted]
         #print('y', len(y), type(y))
         #print('y', y)
         #print('y', np.stack(y, axis=1).shape)
@@ -164,13 +165,14 @@ def state_to_features(game_state: dict) -> np.array:
         # calculate distance to each coin
         coin_dist = np.array([BFS_SP(graph, location, coin) for coin in coins])
         coin_reldis = np.array(coins) - np.array(location)[None,]
-        idx = np.argsort(coin_dist)
+        idx = np.argsort(coin_dist)[0:2]
         coinf = np.hstack((coin_dist[idx, None], coin_reldis[idx, :])).flatten()
     else:
         coinf = []
 
-    to_fill = 9*3 - len(coinf)
-    coinf = np.hstack((coinf, np.repeat(np.nan, to_fill)))
+    to_fill = 2*3 - len(coinf)
+    coinf = np.hstack((coinf, np.repeat(0, to_fill)))
+    #coinf = np.hstack((coinf, np.repeat(np.nan, to_fill)))
 
 
     #print('coin f', coinf)

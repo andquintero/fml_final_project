@@ -123,11 +123,18 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         #print(self.model.predict(self.trainingXold).shape)
 
         # Idea: Add your own events to hand out rewards
-        if sum(np.isnan(self.trainingXnew[-1,:])) == sum(np.isnan(self.trainingXold[-1,:])):
+        if 'COIN_COLLECTED' not in events:
             if self.trainingXnew[-1, 4] < self.trainingXold[-1, 4]:
-                events.append(e.MOVED_TOWARDS_COIN)
+                events.append(e.MOVED_TOWARDS_COIN1)
             else:
-                events.append(e.MOVED_AWAY_FROM_COIN)
+                events.append(e.MOVED_AWAY_FROM_COIN1)
+
+            if self.trainingXnew[-1, 7] < self.trainingXold[-1, 7]:
+                events.append(e.MOVED_TOWARDS_COIN2)
+            else:
+                events.append(e.MOVED_AWAY_FROM_COIN2)
+
+        
         reward = reward_from_events(self, events)
         # add reward as Q value
         empty_Q = np.zeros((1,len(ACTIONS)))
@@ -161,11 +168,16 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.trainingXnew = np.vstack((self.trainingXnew, state_to_features(last_game_state)))
 
     # Idea: Add your own events to hand out rewards
-    if sum(np.isnan(self.trainingXnew[-1,:])) == sum(np.isnan(self.trainingXold[-1,:])):
+    if 'COIN_COLLECTED' not in events:
         if self.trainingXnew[-1, 4] < self.trainingXold[-1, 4]:
-            events.append(e.MOVED_TOWARDS_COIN)
+            events.append(e.MOVED_TOWARDS_COIN1)
         else:
-            events.append(e.MOVED_AWAY_FROM_COIN)
+            events.append(e.MOVED_AWAY_FROM_COIN1)
+
+        if self.trainingXnew[-1, 7] < self.trainingXold[-1, 7]:
+            events.append(e.MOVED_TOWARDS_COIN2)
+        else:
+            events.append(e.MOVED_AWAY_FROM_COIN2)
     reward = reward_from_events(self, events)
     
     # add reward as Q value
@@ -229,8 +241,11 @@ def reward_from_events(self, events: List[str]) -> int:
         e.MOVED_DOWN  : -1,
         e.INVALID_ACTION : -100,
 
-        e.MOVED_AWAY_FROM_COIN : -20,
-        e.MOVED_TOWARDS_COIN : 10,
+        e.MOVED_TOWARDS_COIN1   : 20,
+        e.MOVED_TOWARDS_COIN2   : 10,
+        e.MOVED_AWAY_FROM_COIN1 : -40,
+        e.MOVED_AWAY_FROM_COIN2 : -20,
+        
         e.COIN_COLLECTED : 100
         #e.TIME_TO_COIN : 100
         #e.KILLED_OPPONENT: 5,
