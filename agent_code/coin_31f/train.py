@@ -11,10 +11,17 @@ from .callbacks import ACTIONS
 # Imported by us
 import os
 import numpy as np
+from sklearn.multioutput import MultiOutputRegressor
+from lightgbm import LGBMRegressor
 
+#from sklearn.ensemble import GradientBoostingRegressor
+# HistGradientBoostingRegressor is still experimental requieres:
+# explicitly require this experimental feature
+#from sklearn.experimental import enable_hist_gradient_boosting  # noqa
+# now you can import normally from ensemble
+#from sklearn.ensemble import HistGradientBoostingRegressor
 #------------------------------------------------------------------------------#
-RESTART = True
-#RESTART = False
+
 
 # This is only an example!
 Transition = namedtuple('Transition',
@@ -27,7 +34,6 @@ RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
 # Events
 PLACEHOLDER_EVENT = "PLACEHOLDER"
 
-
 def setup_training(self):
     """
     Initialise self for training purpose.
@@ -37,27 +43,40 @@ def setup_training(self):
     :param self: This object is passed to all callbacks and you can set arbitrary values.
     """
     
-    if not os.path.isfile("initial_guess/trainingXold.npy") or RESTART:
-        # If starting training from scratch, there is no data
-        self.trainingXold = np.empty((0,31))
-        self.trainingXnew = np.empty((0,31))
-        self.trainingQ = np.empty((0,4))
-        self.rewards = np.empty((0,1))
-        self.action = np.empty((0,1))
-        
-
-        #self.trainingX = np.empty((0,6))
-        # Create table indicating the index of the state and action
-        #self.actionSequence = np.empty((0,2))
-    else:
+    if not os.path.isfile("data/trainingXold.npy"):
+        # If starting training from scratch, load dta searned by the rule based agent
         self.trainingXold = np.load('initial_guess/trainingXold.npy')
         self.trainingXnew= np.load('initial_guess/trainingXnew.npy')
         self.rewards = np.load('initial_guess/rewards.npy')
         self.trainingQ = np.load('initial_guess/trainingQ.npy')
         self.action = np.load('initial_guess/action.npy')
-        
+
+        # self.trainingX = np.load('initial_guess/trainingX.npy')
+        # self.trainingQ = np.load('initial_guess/trainingQ.npy')
+        # self.actionSequence = np.load('initial_guess/actionSequence.npy')
+        # self.rewards = np.load('initial_guess/rewards.npy')
 
         
+    else:
+        self.trainingXold = np.load('data/trainingXold.npy')
+        self.trainingXnew= np.load('data/trainingXnew.npy')
+        self.rewards = np.load('data/rewards.npy')
+        self.trainingQ = np.load('data/trainingQ.npy')
+        self.action = np.load('data/action.npy')
+
+        # self.trainingX = np.load('trainingX.npy')
+        # self.trainingQ = np.load('trainingQ.npy')
+        # self.actionSequence = np.load('actionSequence.npy')
+        # self.rewards = np.load('rewards.npy')
+
+
+
+    #self.model.fit(self.trainingX, self.trainingQ)
+    self.model.fit(self.trainingXold, self.trainingQ)
+
+    # Example: Setup an array that will note transition tuples
+    # (s, a, r, s')
+    self.transitions = deque(maxlen=TRANSITION_HISTORY_SIZE)
 
 
 def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_state: dict, events: List[str]):
@@ -77,7 +96,18 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     :param new_game_state: The state the agent is in now.
     :param events: The events that occurred when going from  `old_game_state` to `new_game_state`
     """
-    
+    #print("Events, train: ", events)
+    #print("self.actionRegressor:", self.model)
+
+    self.logger.debug(f'Encountered game event(s) {", ".join(map(repr, events))} in step {new_game_state["step"]}')
+
+    # Idea: Add your own events to hand out rewards
+    if ...:
+        events.append(PLACEHOLDER_EVENT)
+
+    # state_to_features is defined in callbacks.py
+    self.transitions.append(Transition(state_to_features(old_game_state), self_action, state_to_features(new_game_state), reward_from_events(self, events)))
+
     #### WARNING
     # There is a bug in the main code, and the new_game_state is actually the old_game_state
     reward = reward_from_events(self, events)
@@ -93,21 +123,17 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         self.trainingXold = np.vstack((self.trainingXold, state_to_features(old_game_state)))
         self.trainingXnew = np.vstack((self.trainingXnew, state_to_features(new_game_state)))
         # add reward as Q value
-        #empty_Q = np.zeros((1,len(ACTIONS)))
-        empty_Q = np.full((1,len(ACTIONS)), np.nan)
+        empty_Q = np.zeros((1,len(ACTIONS)))
         self.trainingQ = np.vstack((self.trainingQ, empty_Q))
         self.trainingQ[-1, idx_action] = reward
         # add action and reward
         self.rewards = np.vstack((self.rewards, reward))
         self.action = np.vstack((self.action, idx_action))
-        
     
-    # print('Training step:', new_game_state['step'])
-    #print('trainingXold.', self.trainingXold)
-    # print('rewards.', self.rewards)
-    # print('trainingQ.', self.trainingQ)
-    # print('actionSequence.', self.actionSequence)
-    
+    #print(self.model.fit(self.trainingXold, self.trainingQ))
+    #print(self.model.predict(self.trainingXold).shape)
+
+
 
 
 def end_of_round(self, last_game_state: dict, last_action: str, events: List[str]):
@@ -123,8 +149,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     :param self: The same object that is passed to all of your callbacks.
     """
     self.logger.debug(f'Encountered event(s) {", ".join(map(repr, events))} in final step')
-
-
+    self.transitions.append(Transition(state_to_features(last_game_state), last_action, None, reward_from_events(self, events)))
 
     # Add final state
     idx_action = ACTIONS.index(last_action)
@@ -134,17 +159,17 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.trainingXnew = np.vstack((self.trainingXnew, state_to_features(last_game_state)))
     
     # add reward as Q value
-    empty_Q = np.zeros((1,len(ACTIONS)))
+    empty_Q = np.full((1,len(ACTIONS)), np.nan)
     self.trainingQ = np.vstack((self.trainingQ, empty_Q))
     self.trainingQ[-1, idx_action] = reward
     # add action and reward
     self.rewards = np.vstack((self.rewards, reward))
     self.action = np.vstack((self.action, idx_action))
 
-
+    update_Q_values(self)
     # Remove duplicated states and actions pairs
-    _, unique_pairs = np.unique(np.hstack((self.trainingXold, self.trainingXnew, self.trainingQ, self.action)), axis=0, return_index=True)
-    #_, unique_pairs = np.unique(np.hstack((self.trainingXold, self.action)), axis=0, return_index=True)
+    #_, unique_pairs = np.unique(np.hstack((self.trainingXold, self.trainingXnew, self.trainingQ, self.action)), axis=0, return_index=True)
+    _, unique_pairs = np.unique(np.hstack((self.trainingXold, self.action)), axis=0, return_index=True)
     print('unique_pairs:', unique_pairs.shape)
 
     self.trainingXold = self.trainingXold[unique_pairs,]
@@ -158,15 +183,25 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     # print('self.rewards:', self.rewards.shape)
     # print('self.action:', self.action.shape)
     
+    #update_Q_values(self)
+    self.model.fit(self.trainingXold, self.trainingQ)
+    
     #Save
-    np.save('initial_guess/trainingXold.npy', self.trainingXold)
-    np.save('initial_guess/trainingXnew.npy', self.trainingXnew)
-    np.save('initial_guess/rewards.npy', self.rewards)
-    np.save('initial_guess/trainingQ.npy', self.trainingQ)
-    np.save('initial_guess/action.npy', self.action)
+    np.save('data/trainingXold.npy', self.trainingXold)
+    np.save('data/trainingXnew.npy', self.trainingXnew)
+    np.save('data/rewards.npy', self.rewards)
+    np.save('data/trainingQ.npy', self.trainingQ)
+    np.save('data/action.npy', self.action)
 
-    print('self.trainingXold:', self.trainingXold.shape)
-    print("End of round")
+
+
+
+    # Store the model
+    with open("my-saved-model.pt", "wb") as file:
+        pickle.dump(self.model, file)
+
+    #print('self.trainingXold:', self.trainingXold.shape)
+    print("End of round, step:", last_game_state['step'])
 
 
 
@@ -220,23 +255,18 @@ def update_Q_values(self):
     # Learning rate
     ALPHA = 1
 
-    
-    for i in range(len(self.actionSequence)-1):
-        #if not np.isnan(self.actionSequence[i, 0]):
-        if not np.any(np.isnan(self.actionSequence[i:i+2, 0])):
-            #print('iddddd', self.actionSequence[i, :])
-            #print('iddddd+1', self.actionSequence[i+1, :])
-            idx = self.actionSequence[i, :].astype(int)
-            q_old = np.nan_to_num(self.trainingQ[idx[0], idx[1]])
-            reward = self.rewards[i+1]
-            
-            #new_features = self.trainingX[idx[0]+1].reshape(1, -1)
-            new_features = self.trainingX[self.actionSequence[i+1, 0].astype(int)].reshape(1, -1)
-            #print('new_features', new_features, new_features.shape)
 
-            # Update Q
-            q_new = reward + (GAMMA * self.model.predict(new_features).max())
-            q_update = q_old + (ALPHA * (q_new - q_old))
-            
-            self.trainingQ[idx[0], idx[1]] = q_update
+    q_values = np.amax(self.model.predict(self.trainingXnew), axis=1)
+    #q_update = np.zeros(self.trainingQ.shape)
+    for i in range(len(self.trainingQ)):
+        idx_action = self.action[i].astype(int) 
+        q_old = self.trainingQ[i, idx_action]
+        reward = self.rewards[i]
+
+        # Update Q
+        new_v = q_values[i]
+        q_new = reward + (GAMMA * new_v)
+        q_update = q_old + (ALPHA * (q_new - q_old))
+        #q_update [idx[0], idx[1]] = q_toupdate
+        self.trainingQ[i, idx_action] = q_update
         
