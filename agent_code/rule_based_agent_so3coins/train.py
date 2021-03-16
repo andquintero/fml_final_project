@@ -194,8 +194,8 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.rewards = self.rewards[unique_pairs,]
     self.action = self.action[unique_pairs,]
 
-    # print('self.trainingXold:', self.trainingXold.shape)
-    # print('self.trainingXnew:', self.trainingXnew.shape)
+    print('self.trainingXold:', self.trainingXold[0:5])
+    print('self.trainingXnew:', self.trainingXnew[0:5])
     # print('self.rewards:', self.rewards.shape)
     # print('self.action:', self.action.shape)
     

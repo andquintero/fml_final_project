@@ -105,18 +105,8 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         #print(self.model.predict(self.trainingXold).shape)
 
         # Idea: Add your own events to hand out rewards
-        #if (self.trainingXnew[-1,7] == 0 and self.trainingXold[-1,7] != 0) :
-        #if ~(self.trainingXnew[-1,7] == 0 and self.trainingXold[-1,7] != 0) :
-        if 'COIN_COLLECTED' not in events:
-            if self.trainingXnew[-1, 4] < self.trainingXold[-1, 4]:
-                events.append(e.MOVED_TOWARDS_COIN1)
-            else:
-                events.append(e.MOVED_AWAY_FROM_COIN1)
+        reward_moving_to_coin(self, events, new_game_state)
 
-            if self.trainingXnew[-1, 7] < self.trainingXold[-1, 7]:
-                events.append(e.MOVED_TOWARDS_COIN2)
-            else:
-                events.append(e.MOVED_AWAY_FROM_COIN2)
         reward = reward_from_events(self, events)
         #print('events', events)
         # add reward as Q value
@@ -127,6 +117,8 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         self.rewards = np.vstack((self.rewards, reward))
         self.action = np.vstack((self.action, idx_action))
     
+
+
 
 
 def end_of_round(self, last_game_state: dict, last_action: str, events: List[str]):
@@ -153,16 +145,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.trainingXnew = np.vstack((self.trainingXnew, state_to_features(last_game_state)))
 
     # Idea: Add your own events to hand out rewards
-    if 'COIN_COLLECTED' not in events:
-        if self.trainingXnew[-1, 4] < self.trainingXold[-1, 4]:
-            events.append(e.MOVED_TOWARDS_COIN1)
-        else:
-            events.append(e.MOVED_AWAY_FROM_COIN1)
-
-        if self.trainingXnew[-1, 7] < self.trainingXold[-1, 7]:
-            events.append(e.MOVED_TOWARDS_COIN2)
-        else:
-            events.append(e.MOVED_AWAY_FROM_COIN2)
+    reward_moving_to_coin(self, events, last_game_state)
     reward = reward_from_events(self, events)
 
     
@@ -176,9 +159,11 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
 
 
     # Remove duplicated states and actions pairs
-    _, unique_pairs = np.unique(np.hstack((self.trainingXold, self.trainingXnew, self.trainingQ, self.action)), axis=0, return_index=True)
-    #_, unique_pairs = np.unique(np.hstack((self.trainingXold, self.action)), axis=0, return_index=True)
+    #_, unique_pairs = np.unique(np.hstack((self.trainingXold, self.trainingXnew, self.trainingQ, self.action)), axis=0, return_index=True)
+    _, unique_pairs = np.unique(np.hstack((self.trainingXold, self.action)), axis=0, return_index=True)
+    unique_pairs = np.sort(unique_pairs)
     print('unique_pairs:', unique_pairs.shape)
+    #print('unique_pairs:', unique_pairs)
 
     self.trainingXold = self.trainingXold[unique_pairs,]
     self.trainingXnew = self.trainingXnew[unique_pairs,]
@@ -186,10 +171,13 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.rewards = self.rewards[unique_pairs,]
     self.action = self.action[unique_pairs,]
 
+    #print('self.trainingXold:', self.trainingXold[0:5])
+    #print('self.trainingXnew:', self.trainingXnew[0:5])
     # print('self.trainingXold:', self.trainingXold.shape)
     # print('self.trainingXnew:', self.trainingXnew.shape)
     # print('self.rewards:', self.rewards.shape)
     # print('self.action:', self.action.shape)
+
     
     #Save
     np.save('initial_guess/trainingXold.npy', self.trainingXold)
@@ -278,3 +266,16 @@ def update_Q_values(self):
             
             self.trainingQ[idx[0], idx[1]] = q_update
         
+
+def reward_moving_to_coin(self, events, new_game_state):
+    if 'COIN_COLLECTED' not in events and len(new_game_state['coins']) > 0:
+        if self.trainingXnew[-1, 4] < self.trainingXold[-1, 4]:
+            events.append(e.MOVED_TOWARDS_COIN1)
+        else:
+            events.append(e.MOVED_AWAY_FROM_COIN1)
+
+        if len(new_game_state['coins']) > 1:
+            if self.trainingXnew[-1, 7] < self.trainingXold[-1, 7]:
+                events.append(e.MOVED_TOWARDS_COIN2)
+            else:
+                events.append(e.MOVED_AWAY_FROM_COIN2)

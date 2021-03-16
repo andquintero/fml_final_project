@@ -123,16 +123,7 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         #print(self.model.predict(self.trainingXold).shape)
 
         # Idea: Add your own events to hand out rewards
-        if 'COIN_COLLECTED' not in events:
-            if self.trainingXnew[-1, 4] < self.trainingXold[-1, 4]:
-                events.append(e.MOVED_TOWARDS_COIN1)
-            else:
-                events.append(e.MOVED_AWAY_FROM_COIN1)
-
-            if self.trainingXnew[-1, 7] < self.trainingXold[-1, 7]:
-                events.append(e.MOVED_TOWARDS_COIN2)
-            else:
-                events.append(e.MOVED_AWAY_FROM_COIN2)
+        reward_moving_to_coin(self, events, new_game_state)
 
         
         reward = reward_from_events(self, events)
@@ -168,16 +159,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.trainingXnew = np.vstack((self.trainingXnew, state_to_features(last_game_state)))
 
     # Idea: Add your own events to hand out rewards
-    if 'COIN_COLLECTED' not in events:
-        if self.trainingXnew[-1, 4] < self.trainingXold[-1, 4]:
-            events.append(e.MOVED_TOWARDS_COIN1)
-        else:
-            events.append(e.MOVED_AWAY_FROM_COIN1)
-
-        if self.trainingXnew[-1, 7] < self.trainingXold[-1, 7]:
-            events.append(e.MOVED_TOWARDS_COIN2)
-        else:
-            events.append(e.MOVED_AWAY_FROM_COIN2)
+    reward_moving_to_coin(self, events, last_game_state)
     reward = reward_from_events(self, events)
     
     # add reward as Q value
@@ -192,6 +174,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     # Remove duplicated states and actions pairs
     #_, unique_pairs = np.unique(np.hstack((self.trainingXold, self.trainingXnew, self.trainingQ, self.action)), axis=0, return_index=True)
     _, unique_pairs = np.unique(np.hstack((self.trainingXold, self.action)), axis=0, return_index=True)
+    unique_pairs = np.sort(unique_pairs)
     print('unique_pairs:', unique_pairs.shape)
 
     self.trainingXold = self.trainingXold[unique_pairs,]
@@ -245,7 +228,7 @@ def reward_from_events(self, events: List[str]) -> int:
         e.MOVED_TOWARDS_COIN2   : 10,
         e.MOVED_AWAY_FROM_COIN1 : -40,
         e.MOVED_AWAY_FROM_COIN2 : -20,
-        
+
         e.COIN_COLLECTED : 100
         #e.TIME_TO_COIN : 100
         #e.KILLED_OPPONENT: 5,
@@ -296,4 +279,18 @@ def update_Q_values(self):
         q_update = q_old + (ALPHA * (q_new - q_old))
         #q_update [idx[0], idx[1]] = q_toupdate
         self.trainingQ[i, idx_action] = q_update
+
+def reward_moving_to_coin(self, events, new_game_state):
+    if 'COIN_COLLECTED' not in events and len(new_game_state['coins']) > 0:
+        if self.trainingXnew[-1, 4] < self.trainingXold[-1, 4]:
+            events.append(e.MOVED_TOWARDS_COIN1)
+        else:
+            events.append(e.MOVED_AWAY_FROM_COIN1)
+
+        if len(new_game_state['coins']) > 1:
+            if self.trainingXnew[-1, 7] < self.trainingXold[-1, 7]:
+                events.append(e.MOVED_TOWARDS_COIN2)
+            else:
+                events.append(e.MOVED_AWAY_FROM_COIN2)
+
         
