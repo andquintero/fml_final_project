@@ -165,8 +165,8 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
 
     update_Q_values(self)
     # Remove duplicated states and actions pairs
-    _, unique_pairs = np.unique(np.hstack((self.trainingXold, self.trainingXnew, self.trainingQ, self.action)), axis=0, return_index=True)
-    #_, unique_pairs = np.unique(np.hstack((self.trainingXold, self.action)), axis=0, return_index=True)
+    #_, unique_pairs = np.unique(np.hstack((self.trainingXold, self.trainingXnew, self.trainingQ, self.action)), axis=0, return_index=True)
+    _, unique_pairs = np.unique(np.hstack((self.trainingXold, self.action)), axis=0, return_index=True)
     print('unique_pairs:', unique_pairs.shape)
 
     self.trainingXold = self.trainingXold[unique_pairs,]
