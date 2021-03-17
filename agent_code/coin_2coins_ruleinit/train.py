@@ -239,14 +239,14 @@ def reward_from_events(self, events: List[str]) -> int:
         e.MOVED_DOWN  : -1,
         e.INVALID_ACTION : -100,
 
-        # e.MOVED_TOWARDS_COIN1   : 20,
-        # e.MOVED_TOWARDS_COIN2   : 10,
-        # e.MOVED_AWAY_FROM_COIN1 : -40,
-        # e.MOVED_AWAY_FROM_COIN2 : -20,
-        e.MOVED_TOWARDS_COIN1   : 0,
-        e.MOVED_TOWARDS_COIN2   : 0,
-        e.MOVED_AWAY_FROM_COIN1 : 0,
-        e.MOVED_AWAY_FROM_COIN2 : 0,
+        e.MOVED_TOWARDS_COIN1   : 20,
+        e.MOVED_TOWARDS_COIN2   : 10,
+        e.MOVED_AWAY_FROM_COIN1 : -40,
+        e.MOVED_AWAY_FROM_COIN2 : -20,
+        # e.MOVED_TOWARDS_COIN1   : 0,
+        # e.MOVED_TOWARDS_COIN2   : 0,
+        # e.MOVED_AWAY_FROM_COIN1 : 0,
+        # e.MOVED_AWAY_FROM_COIN2 : 0,
 
         e.COIN_COLLECTED : 400
         #e.TIME_TO_COIN : 100
