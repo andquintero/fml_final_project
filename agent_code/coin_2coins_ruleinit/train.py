@@ -36,6 +36,9 @@ RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
 # Events
 PLACEHOLDER_EVENT = "PLACEHOLDER"
 
+MOVED_TOWARDS_COIN = ['MOVED_TOWARDS_COIN' + str(n) for n in range(1,9)]
+MOVED_AWAY_FROM_COIN = ['MOVED_AWAY_FROM_COIN' + str(n) for n in range(1,9)]
+
 
 #------------------------------------------------------------------------------#
 #                         Class to run multiple regressor                      #

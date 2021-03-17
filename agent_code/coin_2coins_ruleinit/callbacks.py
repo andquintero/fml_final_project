@@ -69,7 +69,7 @@ def act(self, game_state: dict) -> str:
 
     self.logger.debug("Querying model for action.")
     current_features = state_to_features(game_state)
-    #print('state_to_features:', current_features)
+    print('state_to_features:', current_features)
     model_pred = self.model.predict(current_features)
     #print('model predict:', model_pred)
     return ACTIONS[np.random.choice(np.flatnonzero(model_pred == model_pred.max())) ]
@@ -106,7 +106,7 @@ def state_to_features(game_state: dict) -> np.array:
     sur_val = np.array([field[c[0], c[1]] for c in sur])
 
     # Find next coin
-    #print('coins: ', coins)
+    print('coins: ', coins)
     free_space = field == 0
 
     # Distance to all coins
@@ -123,6 +123,8 @@ def state_to_features(game_state: dict) -> np.array:
     to_fill = 2*3 - len(coinf)
     coinf = np.hstack((coinf, np.repeat(0, to_fill)))
     features = np.hstack((sur_val, coinf))
+    
+    print('features: ', features)
     
     return features.reshape(1, -1)
 
@@ -216,7 +218,6 @@ def make_field_graph(field):
     :param field:  np.array
     :return: dict
     """
-    field
 
     # agent movements (top - right - down - left)
     area = [(0,-1), (1,0), (0,1), (-1,0)]

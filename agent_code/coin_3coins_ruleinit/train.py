@@ -36,6 +36,8 @@ RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
 # Events
 PLACEHOLDER_EVENT = "PLACEHOLDER"
 
+MOVED_TOWARDS_COIN = ['MOVED_TOWARDS_COIN' + str(n) for n in range(1,10)]
+MOVED_AWAY_FROM_COIN = ['MOVED_AWAY_FROM_COIN' + str(n) for n in range(1,10)]
 
 #------------------------------------------------------------------------------#
 #                         Class to run multiple regressor                      #
@@ -238,22 +240,20 @@ def reward_from_events(self, events: List[str]) -> int:
         e.MOVED_DOWN  : -1,
         e.INVALID_ACTION : -100,
 
-        e.MOVED_TOWARDS_COIN1   : 20,
-        e.MOVED_TOWARDS_COIN2   : 10,
-        e.MOVED_TOWARDS_COIN3   : 5,
-        e.MOVED_AWAY_FROM_COIN1 : -40,
-        e.MOVED_AWAY_FROM_COIN2 : -20,
-        e.MOVED_AWAY_FROM_COIN3 : -10,
-        # e.MOVED_TOWARDS_COIN1   : 0,
-        # e.MOVED_TOWARDS_COIN2   : 0,
-        # e.MOVED_AWAY_FROM_COIN1 : 0,
-        # e.MOVED_AWAY_FROM_COIN2 : 0,
+        #e.MOVED_TOWARDS_COIN1   : 20,
+        #e.MOVED_AWAY_FROM_COIN1 : -40,
 
         e.COIN_COLLECTED : 400
         #e.TIME_TO_COIN : 100
         #e.KILLED_OPPONENT: 5,
         #PLACEHOLDER_EVENT: -.1  # idea: the custom event is bad
     }
+
+    coin_keys = MOVED_TOWARDS_COIN[:trackNcoins] + MOVED_AWAY_FROM_COIN[:trackNcoins]
+    coin_vals = np.hstack((np.linspace(60,5,trackNcoins), np.linspace(-120,-10,trackNcoins)))
+    
+    game_rewards.update(dict(zip(coin_keys, coin_vals)))
+
     reward_sum = 0
     for event in events:
         if event in game_rewards:
@@ -290,23 +290,39 @@ def update_Q_values(self):
         self.trainingQ[i, idx_action] = q_update
 
 def reward_moving_to_coin(self, events, new_game_state):
-    if 'COIN_COLLECTED' not in events and len(new_game_state['coins']) > 0:
-        if self.trainingXnew[-1, 4] < self.trainingXold[-1, 4]:
-            events.append(e.MOVED_TOWARDS_COIN1)
-        else:
-            events.append(e.MOVED_AWAY_FROM_COIN1)
 
-        if len(new_game_state['coins']) > 1:
-            if self.trainingXnew[-1, 7] < self.trainingXold[-1, 7]:
-                events.append(e.MOVED_TOWARDS_COIN2)
-            else:
-                events.append(e.MOVED_AWAY_FROM_COIN2)
+    coin_coords = np.arange(0,9)*3+4
+    remaining_coins = len(new_game_state['coins'])
+    tracking = trackNcoins
+    if remaining_coins < tracking:
+        tracking = remaining_coins
+
+    if 'COIN_COLLECTED' not in events:
+        for i in range(tracking):
+            if self.trainingXnew[-1, coin_coords[i]] < self.trainingXold[-1, coin_coords[i]]:
+            events.append(MOVED_TOWARDS_COIN[i])
+        else:
+            events.append(MOVED_AWAY_FROM_COIN[i])
+
+
+
+    #if 'COIN_COLLECTED' not in events and len(new_game_state['coins']) > 0:
+    #    if self.trainingXnew[-1, 4] < self.trainingXold[-1, 4]:
+    #        events.append(e.MOVED_TOWARDS_COIN1)
+    #    else:
+    #        events.append(e.MOVED_AWAY_FROM_COIN1)
+
+    #    if len(new_game_state['coins']) > 1:
+    #        if self.trainingXnew[-1, 7] < self.trainingXold[-1, 7]:
+    #            events.append(e.MOVED_TOWARDS_COIN2)
+    #        else:
+    #            events.append(e.MOVED_AWAY_FROM_COIN2)
         
-        if len(new_game_state['coins']) > 2:
-            if self.trainingXnew[-1, 10] < self.trainingXold[-1, 10]:
-                events.append(e.MOVED_TOWARDS_COIN3)
-            else:
-                events.append(e.MOVED_AWAY_FROM_COIN3)
+    #    if len(new_game_state['coins']) > 2:
+    #        if self.trainingXnew[-1, 10] < self.trainingXold[-1, 10]:
+    #            events.append(e.MOVED_TOWARDS_COIN3)
+    #        else:
+    #            events.append(e.MOVED_AWAY_FROM_COIN3)
 
         
 def update_stepTables(self, idx_action, reward):
