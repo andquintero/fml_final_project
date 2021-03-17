@@ -1,9 +1,9 @@
 # Train
-**/my-saved-model.pt
+#**/my-saved-model.pt
 **/actionSequence.npy
 **/initial_guess/
-**/rewards.npy
-**/trainingQ.npy
+#**/rewards.npy
+#**/trainingQ.npy
 **/trainingX.npy
 
 # Mac
