@@ -158,6 +158,8 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         # Update tables with Q valuesm rewards and action
         update_stepTables(self, idx_action, reward)
 
+        print('events: ', events)
+
 
 
 def end_of_round(self, last_game_state: dict, last_action: str, events: List[str]):
@@ -300,9 +302,9 @@ def reward_moving_to_coin(self, events, new_game_state):
     if 'COIN_COLLECTED' not in events:
         for i in range(tracking):
             if self.trainingXnew[-1, coin_coords[i]] < self.trainingXold[-1, coin_coords[i]]:
-            events.append(MOVED_TOWARDS_COIN[i])
-        else:
-            events.append(MOVED_AWAY_FROM_COIN[i])
+                events.append(MOVED_TOWARDS_COIN[i])
+            else:
+                events.append(MOVED_AWAY_FROM_COIN[i])
 
 
 
