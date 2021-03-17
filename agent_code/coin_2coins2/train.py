@@ -11,7 +11,7 @@ from .callbacks import ACTIONS
 # Imported by us
 import os
 import numpy as np
-from sklearn.multioutput import MultiOutputRegressor
+#from sklearn.multioutput import MultiOutputRegressor
 from lightgbm import LGBMRegressor
 
 #from sklearn.ensemble import GradientBoostingRegressor
@@ -90,8 +90,6 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     self.logger.debug(f'Encountered game event(s) {", ".join(map(repr, events))} in step {new_game_state["step"]}')
     
     if new_game_state['step'] > 1:
-        # Index: find if state was already present in dataset
-        idx_action = ACTIONS.index(self_action)
 
         # add old and new state
         self.trainingXold = np.vstack((self.trainingXold, state_to_features(old_game_state)))
@@ -101,6 +99,8 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         reward_moving_to_coin(self, events, new_game_state)
         reward = reward_from_events(self, events)
 
+        # Index: find if state was already present in dataset
+        idx_action = ACTIONS.index(self_action)
         # Update tables with Q valuesm rewards and action
         update_stepTables(self, idx_action, reward)
 
@@ -121,9 +121,6 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.logger.debug(f'Encountered event(s) {", ".join(map(repr, events))} in final step')
 
     # Add final state
-    idx_action = ACTIONS.index(last_action)
-    #reward = reward_from_events(self, events)
-    
     # Update old and new state tables
     self.trainingXold = np.vstack((self.trainingXold, self.trainingXnew[-1]))
     self.trainingXnew = np.vstack((self.trainingXnew, state_to_features(last_game_state)))
@@ -132,9 +129,11 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     reward_moving_to_coin(self, events, last_game_state)
     reward = reward_from_events(self, events)
     
+    # Index: find if state was already present in dataset
+    idx_action = ACTIONS.index(last_action)
     # Update tables with Q valuesm rewards and action
     update_stepTables(self, idx_action, reward)
-    # update Q tavlues
+    # update Q values
     update_Q_values(self)
     
     # Remove duplicated states and actions pairs
@@ -163,9 +162,6 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     np.save('data/rewards.npy', self.rewards)
     np.save('data/trainingQ.npy', self.trainingQ)
     np.save('data/action.npy', self.action)
-
-
-
 
     # Store the model
     with open("my-saved-model.pt", "wb") as file:

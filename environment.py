@@ -70,16 +70,16 @@ class GenericWorld:
     def new_round(self):
         raise NotImplementedError()
 
-    def add_agent(self, agent_dir, name, train=False):
+    def add_agent(self, agent_dir, name, train=False, reset=False):
         assert len(self.agents) < s.MAX_AGENTS
 
         # if self.args.single_process:
-        backend = SequentialAgentBackend(train, name, agent_dir)
+        backend = SequentialAgentBackend(train, name, agent_dir, reset)
         # else:
         # backend = ProcessAgentBackend(train, name, agent_dir)
         backend.start()
 
-        agent = Agent(self.colors.pop(), name, agent_dir, train, backend)
+        agent = Agent(self.colors.pop(), name, agent_dir, train, reset, backend)
         self.agents.append(agent)
 
     def tile_is_free(self, x, y):
@@ -282,7 +282,7 @@ class GenericWorld:
                              '-pix_fmt', 'yuv420p', '-qmin', '0', '-qmax', '10', '-crf', '5', '-b:v', '2M', '-c:v',
                              'libvpx-vp9',
                              f'screenshots/{self.round_id}_video.webm'])
-            for f in glob.glob(f'screenshots/{self.round_id}_*.png'):
+            for f in glob.glob(f'screensfsetuphots/{self.round_id}_*.png'):
                 os.remove(f)
 
 
@@ -296,12 +296,13 @@ class BombeRLeWorld(GenericWorld):
     def setup_agents(self, agents):
         # Add specified agents and start their subprocesses
         self.agents = []
-        for agent_dir, train in agents:
-            if list([d for d, t in agents]).count(agent_dir) > 1:
+        for agent_dir, train, reset in agents:
+            #print('reset:', reset)
+            if list([d for d, t, r in agents]).count(agent_dir) > 1:
                 name = agent_dir + '_' + str(list([a.code_name for a in self.agents]).count(agent_dir))
             else:
                 name = agent_dir
-            self.add_agent(agent_dir, name, train=train)
+            self.add_agent(agent_dir, name, train=train, reset=reset)
 
     def new_round(self):
         if self.running:

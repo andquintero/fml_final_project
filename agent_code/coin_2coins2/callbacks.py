@@ -7,7 +7,7 @@ import numpy as np
 #------------------------------------------------------------------------------#
 # Imported by us
 from random import shuffle
-from sklearn.multioutput import MultiOutputRegressor
+#from sklearn.multioutput import MultiOutputRegressor
 from lightgbm import LGBMRegressor
 #from sklearn.ensemble import GradientBoostingRegressor
 # HistGradientBoostingRegressor is still experimental requieres:
@@ -18,7 +18,7 @@ from lightgbm import LGBMRegressor
 #------------------------------------------------------------------------------#
 ## WARNING!!!!
 # if set to True, reset the whole training
-reset = False
+#reset = False
 random_prob = 0.1
 #------------------------------------------------------------------------------#
 
@@ -37,28 +37,19 @@ class MultiRegression():
         '''
         fit one regressor for every column of trainingY
         '''
-        
-        #self.fitted = [self.regressor.fit(trainingX, trainingY[:,i]) for i in range(trainingY.shape[1])]
         self.fitted = []
         for i in range(trainingY.shape[1]):
             idx =  ~np.isnan(trainingY[:,i])
             #print('trainingY:', trainingY[idx,i])
             #print('trainingY:', trainingY[0:5])
-
             self.fitted.append(self.regressor.fit(trainingX[idx,], trainingY[idx,i]))
-
         print(len(self.fitted), " regressors fitted")
 
     def predict(self, testX):
         '''
         predict from a new set of features
         '''
-        #y = [self.fitted[i].predict(testX) for i in range(len(self.fitted))]
         y = [regfitted.predict(testX) for regfitted in self.fitted]
-        #print('y', len(y), type(y))
-        #print('y', y)
-        #print('y', np.stack(y, axis=1).shape)
-        #print(np.hstack(y))
         return np.stack(y, axis=1)
 
 
@@ -80,16 +71,12 @@ def setup(self):
     """
     if self.train or not os.path.isfile("my-saved-model.pt"):
         self.logger.info("Setting up model from scratch.")
-        #weights = np.random.rand(len(ACTIONS))
-        #self.model = weights / weights.sum()
-
         # Start GradientBoostingRegressor for every action
-        #reg = HistGradientBoostingRegressor()
-        #reg = LGBMRegressor(use_missing=False, zero_as_missing=True)
         reg = LGBMRegressor(use_missing=False, zero_as_missing=False)
         self.model = MultiRegression(reg)
-
-        if reset:
+        print('self.train:', self.train)
+        print('self.reset:', self.reset)
+        if self.reset:
             self.random_prob = 1
             self.resetTraining = True
         else :
@@ -113,25 +100,17 @@ def act(self, game_state: dict) -> str:
     :return: The action to take as a string.
     """
     # todo Exploration vs exploitation
-    # print('game_state[field]:', game_state['field'])
-    # print('game_state[coins]:', game_state['coins'])
-    # print('game_state[self]:', game_state['self'])
-    #random_prob = .1
     random_prob = self.random_prob 
     if self.train and random.random() < random_prob:
         self.logger.debug("Choosing action purely at random.")
-        # 80%: walk in any direction. 10% wait. 10% bomb.
+        # 100%: walk in any direction
         return np.random.choice(ACTIONS, p=[.25, .25, .25, .25])
 
     self.logger.debug("Querying model for action.")
-    #return np.random.choice(ACTIONS, p=self.model)
     current_features = state_to_features(game_state)
     #print('state_to_features:', current_features)
     model_pred = self.model.predict(current_features)
     #print('model predict:', model_pred)
-    #return np.random.choice(ACTIONS, p=[.25, .25, .25, .25])
-    
-    
     return ACTIONS[np.random.choice(np.flatnonzero(model_pred == model_pred.max())) ]
     #return ACTIONS[np.argmax(model_pred)]
 
@@ -182,33 +161,7 @@ def state_to_features(game_state: dict) -> np.array:
 
     to_fill = 2*3 - len(coinf)
     coinf = np.hstack((coinf, np.repeat(0, to_fill)))
-    #coinf = np.hstack((coinf, np.repeat(np.nan, to_fill)))
-
-
-    #print('coin f', coinf)
-    
-
-
-
-
-    #print('next coin dir: ', look_for_targets_dist(free_space, location, coins))
-    #best_coin_dist = look_for_targets_dist(free_space, location, coins)
-    
-    
-    #d = look_for_targets(free_space, (x, y), targets, self.logger)
-    #look_for_targets(free_space, start, targets, logger=None)
-
-    # define features 
-    # we have 13 features in total (4 fields next to the agent) and distances to all coins starting with the closest
-
-    #print("h1: ", sur_val)
-    #print("h1: ", best_coin_dist)
-    
-    #features = np.hstack((sur_val, best_coin_dist))
     features = np.hstack((sur_val, coinf))
-    
-    #features = sur_val
-    #to_fill = 13 - len(features)
     
     return features.reshape(1, -1)
 
