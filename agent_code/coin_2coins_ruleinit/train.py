@@ -44,28 +44,27 @@ class MultiRegression():
     '''
     This class fit one regressor for each column of a 2d input response 
     '''
-    def __init__(self, regressor):
+    def __init__(self, regressors):
         # saves the regressor
-        self.regressor = regressor
+        self.regressors = regressors
     
     def fit(self, trainingX, trainingY):
         '''
         fit one regressor for every column of trainingY
         '''
-        self.fitted = []
         for i in range(trainingY.shape[1]):
             idx =  ~np.isnan(trainingY[:,i])
             print("Regressor", i, 'features n=', sum(idx))
             #print('trainingY:', trainingY[idx,i])
             #print('trainingY:', trainingY[0:5])
-            self.fitted.append(self.regressor.fit(trainingX[idx,], trainingY[idx,i]))
-        print(len(self.fitted), " regressors fitted")
+            self.regressors[i].fit(trainingX[idx,], trainingY[idx,i])
+        print(len(self.regressors), " regressors fitted")
 
     def predict(self, testX):
         '''
         predict from a new set of features
         '''
-        y = [regfitted.predict(testX) for regfitted in self.fitted]
+        y = [regfitted.predict(testX) for regfitted in self.regressors]
         return np.stack(y, axis=1)
 #------------------------------------------------------------------------------#
 
@@ -90,7 +89,7 @@ def setup_training(self):
     print('self.train:', self.train)
     print('self.reset:', self.reset)
     # Start GradientBoostingRegressor for every action
-    reg = LGBMRegressor(use_missing=False, zero_as_missing=False)
+    reg = [LGBMRegressor(use_missing=False, zero_as_missing=False) for i in range(len(ACTIONS))]
     self.model = MultiRegression(reg)
     
     if self.reset is True:
