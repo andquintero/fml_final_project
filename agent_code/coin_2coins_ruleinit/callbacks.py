@@ -9,6 +9,9 @@ import numpy as np
 from random import shuffle
 #from sklearn.multioutput import MultiOutputRegressor
 from lightgbm import LGBMRegressor
+
+from .resetRuleBased import reseter
+
 #from sklearn.ensemble import GradientBoostingRegressor
 # HistGradientBoostingRegressor is still experimental requieres:
 # explicitly require this experimental feature
@@ -80,6 +83,8 @@ def setup(self):
         if self.reset:
             self.random_prob = 1
             self.resetTraining = True
+            self.reseter = reseter
+            self.current_round = 0
         else :
             self.random_prob = random_prob
             self.resetTraining = False
@@ -101,10 +106,11 @@ def act(self, game_state: dict) -> str:
     :return: The action to take as a string.
     """
     # todo Exploration vs exploitation
-    random_prob = self.random_prob 
-    if self.train and random.random() < random_prob:
-        self.logger.debug("Choosing action purely at random.")
+    if self.train and random.random() < self.random_prob :
+        if self.resetTraining:
+            return self.reseter(self, game_state)
         # 100%: walk in any direction
+        self.logger.debug("Choosing action purely at random.")
         return np.random.choice(ACTIONS, p=[.25, .25, .25, .25])
 
     self.logger.debug("Querying model for action.")
