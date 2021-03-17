@@ -40,6 +40,7 @@ class MultiRegression():
         self.fitted = []
         for i in range(trainingY.shape[1]):
             idx =  ~np.isnan(trainingY[:,i])
+            print("Regressor", i, 'features n=', sum(idx))
             #print('trainingY:', trainingY[idx,i])
             #print('trainingY:', trainingY[0:5])
             self.fitted.append(self.regressor.fit(trainingX[idx,], trainingY[idx,i]))
