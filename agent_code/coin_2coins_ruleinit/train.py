@@ -14,6 +14,9 @@ import numpy as np
 #from sklearn.multioutput import MultiOutputRegressor
 from lightgbm import LGBMRegressor
 
+from .resetRuleBased import reseter
+from .callbacks import random_prob
+
 #from sklearn.ensemble import GradientBoostingRegressor
 # HistGradientBoostingRegressor is still experimental requieres:
 # explicitly require this experimental feature
@@ -33,6 +36,40 @@ RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
 # Events
 PLACEHOLDER_EVENT = "PLACEHOLDER"
 
+
+#------------------------------------------------------------------------------#
+#                         Class to run multiple regressor                      #
+#------------------------------------------------------------------------------#
+class MultiRegression():
+    '''
+    This class fit one regressor for each column of a 2d input response 
+    '''
+    def __init__(self, regressor):
+        # saves the regressor
+        self.regressor = regressor
+    
+    def fit(self, trainingX, trainingY):
+        '''
+        fit one regressor for every column of trainingY
+        '''
+        self.fitted = []
+        for i in range(trainingY.shape[1]):
+            idx =  ~np.isnan(trainingY[:,i])
+            print("Regressor", i, 'features n=', sum(idx))
+            #print('trainingY:', trainingY[idx,i])
+            #print('trainingY:', trainingY[0:5])
+            self.fitted.append(self.regressor.fit(trainingX[idx,], trainingY[idx,i]))
+        print(len(self.fitted), " regressors fitted")
+
+    def predict(self, testX):
+        '''
+        predict from a new set of features
+        '''
+        y = [regfitted.predict(testX) for regfitted in self.fitted]
+        return np.stack(y, axis=1)
+#------------------------------------------------------------------------------#
+
+
 def setup_training(self):
     """
     Initialise self for training purpose.
@@ -50,7 +87,19 @@ def setup_training(self):
     #     self.trainingQ = np.load('initial_guess/trainingQ.npy')
     #     self.action = np.load('initial_guess/action.npy')
 
-    if self.resetTraining is True:
+    print('self.train:', self.train)
+    print('self.reset:', self.reset)
+    # Start GradientBoostingRegressor for every action
+    reg = LGBMRegressor(use_missing=False, zero_as_missing=False)
+    self.model = MultiRegression(reg)
+    
+    if self.reset is True:
+
+        self.random_prob = 1
+        #self.resetTraining = True
+        self.reseter = reseter
+        self.current_round = 0
+
         # If starting training from scratch, there is no data
         self.trainingXold = np.empty((0,10))
         self.trainingXnew = np.empty((0,10))
@@ -58,7 +107,11 @@ def setup_training(self):
         self.rewards      = np.empty((0,1))
         self.action       = np.empty((0,1))
 
+
     else:
+        self.random_prob = random_prob
+        #self.resetTraining = False
+
         self.trainingXold = np.load('data/trainingXold.npy')
         self.trainingXnew= np.load('data/trainingXnew.npy')
         self.rewards = np.load('data/rewards.npy')
@@ -218,7 +271,7 @@ def update_Q_values(self):
     # Learning rate
     ALPHA = 1
 
-    if self.resetTraining is True:
+    if self.reset is True:
         self.model.fit(self.trainingXold, self.trainingQ)
 
     q_values = np.amax(self.model.predict(self.trainingXnew), axis=1)
