@@ -84,7 +84,7 @@ def main(argv = None):
             agents.append((args.my_agent, len(agents) < args.train, args.reset_training))
             args.agents = ["rule_based_agent"] * (s.MAX_AGENTS - 1)
         for agent_name in args.agents:
-            agents.append((agent_name, len(agents) < args.train))
+            agents.append((agent_name, len(agents) < args.train, args.reset_training))
 
         world = BombeRLeWorld(args, agents)
     elif args.command_name == "replay":
