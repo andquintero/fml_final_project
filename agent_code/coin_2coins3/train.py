@@ -11,6 +11,7 @@ from .callbacks import ACTIONS
 # Imported by us
 import os
 import numpy as np
+import pandas as pd
 #from sklearn.multioutput import MultiOutputRegressor
 from lightgbm import LGBMRegressor
 
@@ -52,6 +53,7 @@ def setup_training(self):
 
     if self.resetTraining is True:
         # If starting training from scratch, there is no data
+        self.duplicates = np.empty((0, 21))
         self.trainingXold = np.empty((0,10))
         self.trainingXnew = np.empty((0,10))
         self.trainingQ    = np.empty((0,4))
@@ -59,6 +61,7 @@ def setup_training(self):
         self.action       = np.empty((0,1))
 
     else:
+        self.duplicates = np.load('data/duplicates.npy')
         self.trainingXold = np.load('data/trainingXold.npy')
         self.trainingXnew= np.load('data/trainingXnew.npy')
         self.rewards = np.load('data/rewards.npy')
@@ -140,7 +143,11 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     #_, unique_pairs = np.unique(np.hstack((self.trainingXold, self.trainingXnew, self.trainingQ, self.action)), axis=0, return_index=True)
     _, unique_pairs = np.unique(np.hstack((self.trainingXold, self.action)), axis=0, return_index=True)
     unique_pairs = np.sort(unique_pairs)
+
     print('unique_pairs:', unique_pairs.shape)
+
+    dup_idx = pd.DataFrame(np.hstack((self.trainingXold, self.action))).duplicated(keep=False).to_numpy()
+    duplicates = np.hstack((self.trainingXold, self.action, self.trainingXnew))[dup_idx,:]
 
     self.trainingXold = self.trainingXold[unique_pairs,]
     self.trainingXnew = self.trainingXnew[unique_pairs,]
@@ -157,6 +164,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.model.fit(self.trainingXold, self.trainingQ)
     
     #Save
+    np.save('data/duplicates.npy', self.duplicates)
     np.save('data/trainingXold.npy', self.trainingXold)
     np.save('data/trainingXnew.npy', self.trainingXnew)
     np.save('data/rewards.npy', self.rewards)
