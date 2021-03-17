@@ -164,7 +164,7 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         # Update tables with Q valuesm rewards and action
         update_stepTables(self, idx_action, reward)
 
-        print('events: ', events)
+        #print('events: ', events)
 
 
 
@@ -187,9 +187,14 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.trainingXold = np.vstack((self.trainingXold, self.trainingXnew[-1]))
     self.trainingXnew = np.vstack((self.trainingXnew, state_to_features(last_game_state)))
 
+    
     # Idea: Add your own events to hand out rewards
+    # Penalize moving back and forth
+    reward_moving_back(self, events, last_game_state)
+    # Rewards according to coind position
     reward_moving_to_coin(self, events, last_game_state)
     reward = reward_from_events(self, events)
+    
     
     # Index: find if state was already present in dataset
     idx_action = ACTIONS.index(last_action)
@@ -248,7 +253,7 @@ def reward_from_events(self, events: List[str]) -> int:
         e.MOVED_DOWN  : -1,
         e.INVALID_ACTION : -100,
 
-        MOVED_BACK_AND_FORTH: -100
+        MOVED_BACK_AND_FORTH: -100,
 
         #e.MOVED_TOWARDS_COIN1   : 20,
         #e.MOVED_AWAY_FROM_COIN1 : -40,
@@ -301,9 +306,11 @@ def update_Q_values(self):
 
 def reward_moving_back(self, events, new_game_state):
     if new_game_state['step'] > 3:
-        #print( "unique: ", np.unique(self.trainingXold[-4:-1], axis=0).shape[0] < 3)
-        if np.unique(self.trainingXold[-4:-1], axis=0).shape[0] < 3:
+        #print( "unique: ", np.unique(self.trainingXold[(-3,-1), :], axis=0).shape[0] )
+        #print( "unique: ", np.unique(self.trainingXold[(-3,-1), :], axis=0))
+        if np.unique(self.trainingXold[(-3,-1), :], axis=0).shape[0] ==1 or np.unique(self.trainingXold[-3:-1], axis=0).shape[0] == 1:
             events.append(MOVED_BACK_AND_FORTH)
+        #if np.unique(self.trainingXold[-3:-1], axis=0).shape[0] == 1:
 
 
 def reward_moving_to_coin(self, events, new_game_state):
