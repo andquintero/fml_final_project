@@ -246,6 +246,34 @@ def state_to_features(game_state: dict) -> np.array:
     #print('bombav', bombav)
     bombsf = np.hstack((bombav, bombsf))
     #print('bombsf:', bombsf)
+
+    # connect graph collecting only currently free fields
+    graph = make_empty_field_graph(game_state)
+
+    # filter out free fields in agent radius of 4
+    free_tiles = list(graph.keys())
+    tile_dis = np.abs(np.array(free_tiles) - np.array(location)[None,])
+    idx = np.where(np.sum(tile_dis <= 4, axis=1) == 2)[0]
+    free_tiles = [free_tiles[i] for i in idx]
+
+    # calculate if they are accessible and if yes, the shortest path
+    free_tile_dist = [BFS_SP(graph, location, tile) for tile in free_tiles]
+    idx = np.where(np.array(free_tile_dist) != None)[0]
+    free_tile_dist = [free_tile_dist[i] for i in idx]
+
+    if np.any(np.array(free_tile_dist) >= 4):
+        good_spot = 1
+    else:
+        free_tiles = np.array([free_tiles[i] for i in idx])
+        loc = np.array(location)
+        if np.any(np.sum(free_tiles == loc, axis=1) == 0):
+            good_spot = 1
+        else:
+            good_spot = 0
+    
+
+    print('good spot: ', good_spot)
+
     #--------------------------------------------------------------------------#
     # print('Feature sur_val n: ', sur_val.shape)
     # print('Feature coinf n: ', coinf.shape)
@@ -386,3 +414,51 @@ def make_field_graph(field):
     
     return dict(zip(nodes, targets))   
 
+
+def make_empty_field_graph(game_state):
+    """
+    Takes as input the field and returns a graph representation
+
+    :param field:  np.array
+    :return: dict
+    """
+
+    field = game_state['field']
+    bombs = game_state['bombs']
+    bombs_location = [bomb[0] for bomb in bombs]
+
+
+    # agent movements (top - right - down - left)
+    area = [(0,-1), (1,0), (0,1), (-1,0)]
+
+    # create graph for possible movements through the field
+    x_0, y_0 = np.where(field == 0)
+    zero_vals = [(x_0[i], y_0[i]) for i in range(len(x_0))]
+    zero_vals2 = [z for z in zero_vals if z not in bombs_location]
+
+    targets = []
+    for coord in zero_vals:
+        pb = [tuple(map(sum, zip(coord, n))) for n in area]
+        targets.append([x for x in pb if x in zero_vals])
+    
+    return dict(zip(zero_vals, targets))  
+
+# define function for BFS
+# https://www.geeksforgeeks.org/building-an-undirected-graph-and-finding-shortest-path-using-dictionaries-in-python/
+def BFS_SP(graph, start, goal): 
+    explored = [] 
+    queue = [[start]] 
+    if start == goal: 
+        return 0
+    while queue: 
+        path = queue.pop(0) 
+        node = path[-1] 
+        if node not in explored: 
+            neighbours = graph[node] 
+            for neighbour in neighbours: 
+                new_path = list(path) 
+                new_path.append(neighbour) 
+                queue.append(new_path) 
+                if neighbour == goal: 
+                    return len(new_path)-1
+            explored.append(node)

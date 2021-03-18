@@ -387,10 +387,6 @@ def reward_moving_back(self, events, new_game_state):
 def reward_its_a_trap(self, events, new_game_state):
     if sum(self.trainingXnew[-1, 0:4] == 0) == 0:
         events.append(ITS_A_TRAP)
-            
-
-
-
 
 
 def reward_moving_to_coin(self, events, new_game_state):
