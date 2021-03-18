@@ -305,14 +305,14 @@ def reward_from_events(self, events: List[str]) -> int:
         ITS_A_TRAP      : -500,
         #BOMB_EXPLODED : 
 
-        e.CRATE_DESTROYED : 100,
-        e.COIN_FOUND      : 300,
+        e.CRATE_DESTROYED : 50,
+        e.COIN_FOUND      : 50,
         e.COIN_COLLECTED  : 400,
 
         #KILLED_OPPONENT = 'KILLED_OPPONENT'
-        e.KILLED_SELF : -400,
+        e.KILLED_SELF : -1000,
 
-        e.GOT_KILLED  : -400,
+        e.GOT_KILLED  : -2000,
         #OPPONENT_ELIMINATED = 'OPPONENT_ELIMINATED'
         e.SURVIVED_ROUND : 100
 
@@ -388,6 +388,8 @@ def reward_its_a_trap(self, events, new_game_state):
     if sum(self.trainingXnew[-1, 0:4] == 0) == 0:
         events.append(ITS_A_TRAP)
 
+    if self.trainingXold[-1, 28] == 0 and self.trainingXold[-1, 23] == 1 and self.trainingXnew[-1,23] == 0:
+        events.append(TS_A_TRAP)
 
 def reward_moving_to_coin(self, events, new_game_state):
 
