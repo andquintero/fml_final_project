@@ -39,6 +39,8 @@ PLACEHOLDER_EVENT = "PLACEHOLDER"
 
 MOVED_TOWARDS_COIN = ['MOVED_TOWARDS_COIN' + str(n) for n in range(1,10)]
 MOVED_AWAY_FROM_COIN = ['MOVED_AWAY_FROM_COIN' + str(n) for n in range(1,10)]
+MOVED_TOWARDS_CRATE = ['MOVED_TOWARDS_CRATE' + str(n) for n in range(1,4)]
+MOVED_AWAY_FROM_CRATE = ['MOVED_AWAY_FROM_CRATE' + str(n) for n in range(1,4)]
 MOVED_BACK_AND_FORTH = 'MOVED_BACK_AND_FORTH'
 ITS_A_TRAP = 'ITS_A_TRAP'
 
@@ -173,6 +175,7 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         reward_its_a_trap(self, events, new_game_state)
         # Rewards according to coin position
         reward_moving_to_coin(self, events, new_game_state)
+        reward_moving_to_crate(self, events, new_game_state)
         reward = reward_from_events(self, events)
         #print('events: ', events)
         # Index: find if state was already present in dataset
@@ -321,9 +324,13 @@ def reward_from_events(self, events: List[str]) -> int:
     }
 
     coin_keys = MOVED_TOWARDS_COIN[:trackNcoins] + MOVED_AWAY_FROM_COIN[:trackNcoins]
-    coin_vals = np.hstack((np.linspace(60,5,trackNcoins), np.linspace(-120,-10,trackNcoins)))
+    coin_vals = np.hstack((np.linspace(60,20,trackNcoins), np.linspace(-120,-40,trackNcoins)))
     
+    crate_keys = MOVED_TOWARDS_CRATE[:trackNcrates] + MOVED_AWAY_FROM_CRATE[:trackNcrates]
+    crate_vals = np.hstack((np.linspace(30,10,trackNcrates), np.linspace(-60,-20,trackNcrates)))
+
     game_rewards.update(dict(zip(coin_keys, coin_vals)))
+    game_rewards.update(dict(zip(crate_keys, crate_vals)))
 
     reward_sum = 0
     for event in events:
@@ -388,7 +395,7 @@ def reward_its_a_trap(self, events, new_game_state):
 
 def reward_moving_to_coin(self, events, new_game_state):
 
-    coin_coords = np.arange(0,9)*3+4
+    coin_coords = np.arange(0,3)*3+4
     remaining_coins = len(new_game_state['coins'])
     tracking = trackNcoins
     if remaining_coins < tracking:
@@ -401,6 +408,20 @@ def reward_moving_to_coin(self, events, new_game_state):
             else:
                 events.append(MOVED_AWAY_FROM_COIN[i])
 
+def reward_moving_to_crate(self, events, new_game_state):
+
+    crate_coords = np.arange(0,3)*3+13
+    remaining_crates = len(np.where(new_game_state['field'] == 1))
+    tracking = trackNcrates
+    if remaining_crates < tracking:
+        tracking = remaining_crates
+    
+    if 'CRATE_DESTROYED' not in events and self.trainingXnew[-1, 24] == 0:
+        for i in range(tracking):
+            if self.trainingXnew[-1, crate_coords[i]] < self.trainingXold[-1, crate_coords[i]]:
+                events.append(MOVED_TOWARDS_CRATE[i])
+            else:
+                events.append(MOVED_AWAY_FROM_CRATE[i])
 
 
     #if 'COIN_COLLECTED' not in events and len(new_game_state['coins']) > 0:
