@@ -125,7 +125,7 @@ def setup_training(self):
         #print('self.trainingQ:', self.trainingQ)
         self.model.fit(self.trainingXold, self.trainingQ)
 
-
+location_history = []
 
 def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_state: dict, events: List[str]):
     """
@@ -148,9 +148,14 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     
 
     if new_game_state['step'] > 1:
-        print('Features:', state_to_features(old_game_state))
-        print('self_action', self_action)
-        print('events: ', events)
+        _, _, _, location = old_game_state['self']
+        location_history.append(location)
+        #print('self location', location_history)
+
+
+        #print('Features:', state_to_features(old_game_state))
+        #print('self_action', self_action)
+        #print('events: ', events)
         # if self_action is None:
         #     print('events: ', events)
         #     print('self_action', self_action)
@@ -166,7 +171,7 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         # Rewards according to coind position
         reward_moving_to_coin(self, events, new_game_state)
         reward = reward_from_events(self, events)
-
+        #print('events: ', events)
         # Index: find if state was already present in dataset
         idx_action = ACTIONS.index(self_action) if self_action is not None else 0
         # Update tables with Q valuesm rewards and action
@@ -351,10 +356,19 @@ def update_Q_values(self):
 
 def reward_moving_back(self, events, new_game_state):
     if new_game_state['step'] > 3:
+        # print(location_history[-4:-1])
+        # print('comparison: ', location_history[-3] == location_history[-1])
+        # print('comparison elem 1: ', location_history[-3] )
+        # print('comparison elem 3: ', location_history[-1] )
+        if location_history[-3] == location_history[-1]:
+            #print("WARNING!!!! moved back and forth")
+            events.append(MOVED_BACK_AND_FORTH)
+
+            #print("events adter moving back", events)
+
         #print( "unique: ", np.unique(self.trainingXold[(-3,-1), :], axis=0).shape[0] )
         #print( "unique: ", np.unique(self.trainingXold[(-3,-1), :], axis=0))
-        if np.unique(self.trainingXold[(-3,-1), :], axis=0).shape[0] ==1 or np.unique(self.trainingXold[-3:-1], axis=0).shape[0] == 1:
-            events.append(MOVED_BACK_AND_FORTH)
+        #if np.unique(self.trainingXold[(-3,-1), :], axis=0).shape[0] ==1 or np.unique(self.trainingXold[-3:-1], axis=0).shape[0] == 1:
         #if np.unique(self.trainingXold[-3:-1], axis=0).shape[0] == 1:
 
 
