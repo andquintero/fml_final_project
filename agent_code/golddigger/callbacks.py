@@ -131,31 +131,31 @@ def state_to_features(game_state: dict) -> np.array:
     to_fill = trackNcoins*3 - len(coinf)
     coinf = np.hstack((coinf, np.repeat(0, to_fill)))
 
-    # Distance to 3 closest crates and number of crates that can be blown away at current position
-    xcrate, ycrate = np.where(field==1)
-    crates = [(xcrate[i], ycrate[i]) for i in range(len(xcrate))]
+    # # Distance to 3 closest crates and number of crates that can be blown away at current position
+    # xcrate, ycrate = np.where(field==1)
+    # crates = [(xcrate[i], ycrate[i]) for i in range(len(xcrate))]
 
-    if len(crates) > 0:
-        crate_dist = np.array([calculate_weighted_distance(graph, location, crate) for crate in crates])
-        crate_reldis = np.array(crates) - np.array(location)[None,]
-        idx = np.argsort(crate_dist)[0:trackNcrates]
-        cratef = np.hstack((crate_dist[idx, None], crate_reldis[idx, :])).flatten()
-    else:
-        cratef = []
+    # if len(crates) > 0:
+    #     crate_dist = np.array([calculate_weighted_distance(graph, location, crate) for crate in crates])
+    #     crate_reldis = np.array(crates) - np.array(location)[None,]
+    #     idx = np.argsort(crate_dist)[0:trackNcrates]
+    #     cratef = np.hstack((crate_dist[idx, None], crate_reldis[idx, :])).flatten()
+    # else:
+    #     cratef = []
 
-    to_fill = trackNcrates*3 - len(cratef)
-    cratef = np.hstack((cratef, np.repeat(0, to_fill)))
+    # to_fill = trackNcrates*3 - len(cratef)
+    # cratef = np.hstack((cratef, np.repeat(0, to_fill)))
 
-    crates_to_explode = []
-    for direction in area:
-        loc = location
-        for i in range(1,4):
-            neighbor = tuple(map(sum, zip(loc, direction)))
-            if field[neighbor[0], neighbor[1]] == -1:
-                break
-            if neighbor in crates:
-                crates_to_explode.append(neighbor)
-            loc = neighbor
+    # crates_to_explode = []
+    # for direction in area:
+    #     loc = location
+    #     for i in range(1,4):
+    #         neighbor = tuple(map(sum, zip(loc, direction)))
+    #         if field[neighbor[0], neighbor[1]] == -1:
+    #             break
+    #         if neighbor in crates:
+    #             crates_to_explode.append(neighbor)
+    #         loc = neighbor
 
     #--------------------------------------------------------------------------#
     # Relative distance to all bombs
