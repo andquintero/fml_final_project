@@ -132,6 +132,11 @@ def state_to_features(game_state: dict) -> np.array:
     #print('game_state', game_state)
     bombs = game_state['bombs']
 
+    # if it can place a bomb
+    # if the bomb will harm you
+    # relative distance to bomb
+    # ticker
+
     #xx
     if len(bombs)>0:
         # calculate relative distance to each bomb
@@ -274,22 +279,19 @@ def make_field_graph(field):
     :param field:  np.array
     :return: dict
     """
-    field
 
     # agent movements (top - right - down - left)
     area = [(0,-1), (1,0), (0,1), (-1,0)]
 
     # create graph for possible movements through the field (free tiles and crates)
-    x0, y0 = np.where(np.logical_or(nums==0, nums==1))
+    x0, y0 = np.where(np.logical_or(field==0, field==1))
     nodes = [(x0[i], y0[i]) for i in range(len(x0))]
     targets = []
 
     # this time we are creating a graph with weighted edges (1 if next field is a free tile, 0 if)
     for coord in nodes:
-        pb = [tuple(map(sum, zip(coord, n))) for n in neighboring]
-        targets.append({x: 1 if nums[x[0], x[1]] == 0 else 3 for x in pb if x in nodes})
+        pb = [tuple(map(sum, zip(coord, n))) for n in area]
+        targets.append({x: 1 if field[x[0], x[1]] == 0 else 3 for x in pb if x in nodes})
     
     return dict(zip(nodes, targets))   
 
-
-    
