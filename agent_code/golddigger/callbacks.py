@@ -111,10 +111,14 @@ def state_to_features(game_state: dict) -> np.array:
     # get info for the surroundings of the agent (N-E-S-W)
     sur = [tuple(map(sum, zip(location, n))) for n in area]
 
-    sur in bombs_location
     bombs_location = [bomb[0] for bomb in bombs]
+    idx = np.where([s in bombs_location for s in sur])[0]
 
     sur_val = np.array([field[c[0], c[1]] for c in sur])
+
+    if len(idx) > 0:
+        sur_val[idx] = -1
+
     #print('coins: ', coins)
     #free_space = field == 0
     #--------------------------------------------------------------------------#
