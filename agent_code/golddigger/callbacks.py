@@ -161,9 +161,9 @@ def state_to_features(game_state: dict) -> np.array:
     # Relative distance to all bombs
     #print('game_state', game_state)
     bombs = game_state['bombs']
-    trackNbombs = len(game_state['others']) + 1
+    #trackNbombs = len(game_state['others']) + 1
     #print('game_state[others]', game_state['others'], len(game_state['others']))
-    #trackNbombs =  1
+    trackNbombs =  1
     
 
     # if it can place a bomb
@@ -180,48 +180,53 @@ def state_to_features(game_state: dict) -> np.array:
         bomb_reldis = np.array(bombs_location) - np.array(location)[None,]
         # shortest distance in x or y axis
         bomb_mindist = np.amin(np.abs(bomb_reldis), axis=1)
-        idx = np.argsort(bomb_mindist)[0:len(bombs)]
-        #print('bombsf idx:', idx, type(idx))
-        #print('bomb_reldis :', bomb_reldis)
-        #print('bombs_location :', bombs_location)
+        idx_bombs = np.argsort(bomb_mindist)[0:len(bombs)]
 
+        # Find if the bomb can harm the player
+        bomb_harm = []
         for i in range(len(bombs_location)):
-            print('bomb_mindist[i]', bomb_mindist[i])
-            bombl = bombs_location[i]
-            if bomb_mindist[i] > 4:
-                "NO HARM"
+            # Location of bomb and player
+            bombl = np.array(bombs_location[i])
+            loc = np.array(location)
+            if bomb_mindist[i] > 4 or not any(bombl == loc):
+                # 'NO HARM'
+                bomb_harm.append(0)
             else:
+                # select index of the axis in which bomb can harm you
+                idx = np.argmax(bombl == loc) # 0 x axis, 1 y axis
+                if idx == 0:
+                    f = min((bombl[1], loc[1]))
+                    t = max((bombl[1], loc[1]))
+                    bomb_range = field[loc[0], f:t]
+                else:
+                    f = min((bombl[0], loc[0]))
+                    t = max((bombl[0], loc[0]))
+                    bomb_range = field[f:t, loc[1]]
                 # check if there are walls
-                field[bombl[0]:location[0]]
-                print('bombl', bombl)
-                print('location', location)
-                print('range bomb x:', field[bombl[0]:location[0], location[1]])
-                print('range bomb y:', field[location[0], bombl[1]:location[1]])
-
-            
-
-            field
-
-            bomb_reldis
-            # look only at bombs that are closer than 4 tiles
-
-            #print('field :', field)
-            #print('bombs_location :', bombl)
-            #print('location :', location)
-            #print('field location :', field[location])
-
-        #location
+                if len(bomb_range) > 4 or sum(bomb_range == -1) > 0:
+                    # 'NO HARM'
+                    bomb_harm.append(0)
+                else:
+                    # 'HARM'
+                    bomb_harm.append(1)
 
 
-
-        bombsf = np.hstack((bombs_ticker[idx, None], bomb_reldis[idx, :])).flatten()        
+        bombsf = np.hstack((np.array(bomb_harm)[idx_bombs, None], bombs_ticker[idx_bombs, None], bomb_reldis[idx_bombs, :])).flatten()        
 
     else:
         bombsf = []
 
-    to_fill = 4*3 - len(bombsf)
-    # we have to choose if nan or a high number
-    bombsf = np.hstack((bombsf, np.repeat(np.nan, to_fill)))
+    to_fill = trackNbombs*3 - len(bombsf)
+    if to_fill > 0:
+        #print('bombsf to_fill:', to_fill)
+        #print('bombsf nofill:', bombsf)
+        # we have to choose if nan or a high number
+        bombsf = np.hstack((bombsf, np.repeat(np.nan, to_fill)))
+
+    bombav = np.array(game_state['self'][2]*1) # if the BOMB action is available
+    #bombav = np.repeat(game_state['self'][2]*1, trackNbombs)
+    print('bombav', bombav)
+    bombsf = np.hstack((bombav, bombsf))
     print('bombsf:', bombsf)
     #--------------------------------------------------------------------------#
     
