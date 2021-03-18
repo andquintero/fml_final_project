@@ -146,10 +146,14 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     """
     self.logger.debug(f'Encountered game event(s) {", ".join(map(repr, events))} in step {new_game_state["step"]}')
     
+
     if new_game_state['step'] > 1:
-        if self_action is None:
-            print('events: ', events)
-            print('self_action', self_action)
+        print('Features:', state_to_features(old_game_state))
+        print('self_action', self_action)
+        print('events: ', events)
+        # if self_action is None:
+        #     print('events: ', events)
+        #     print('self_action', self_action)
 
         # add old and new state
         self.trainingXold = np.vstack((self.trainingXold, state_to_features(old_game_state)))
@@ -276,14 +280,30 @@ def reward_from_events(self, events: List[str]) -> int:
         e.MOVED_RIGHT : -1,
         e.MOVED_UP    : -1,
         e.MOVED_DOWN  : -1,
+        e.WAITED      : -10,
         e.INVALID_ACTION : -100,
 
-        MOVED_BACK_AND_FORTH: -100,
+        MOVED_BACK_AND_FORTH: -300,
 
         #e.MOVED_TOWARDS_COIN1   : 20,
         #e.MOVED_AWAY_FROM_COIN1 : -40,
 
-        e.COIN_COLLECTED : 400
+        e.BOMB_DROPPED  : 10,
+        #BOMB_EXPLODED : 
+
+        e.CRATE_DESTROYED : 100,
+        e.COIN_FOUND      : 300,
+        e.COIN_COLLECTED  : 400,
+
+        #KILLED_OPPONENT = 'KILLED_OPPONENT'
+        e.KILLED_SELF : -400,
+
+        e.GOT_KILLED  : -400,
+        #OPPONENT_ELIMINATED = 'OPPONENT_ELIMINATED'
+        e.SURVIVED_ROUND : 100
+
+
+
         #e.TIME_TO_COIN : 100
         #e.KILLED_OPPONENT: 5,
         #PLACEHOLDER_EVENT: -.1  # idea: the custom event is bad

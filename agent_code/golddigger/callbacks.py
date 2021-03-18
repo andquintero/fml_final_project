@@ -71,7 +71,7 @@ def act(self, game_state: dict) -> str:
             return a
         # 100%: walk in any direction
         self.logger.debug("Choosing action purely at random.")
-        return np.random.choice(ACTIONS, p=[.25, .25, .25, .25])
+        return np.random.choice(ACTIONS, p=[.2, .2, .2, .2, .1, .1])
 
     self.logger.debug("Querying model for action.")
     current_features = state_to_features(game_state)
@@ -104,13 +104,17 @@ def state_to_features(game_state: dict) -> np.array:
     field = game_state['field']
     coins = game_state['coins']
     name, score, bomb, location = game_state['self']
+    bombs = game_state['bombs']
 
     # agent movements (top - right - down - left)
     area = [(0,-1), (1,0), (0,1), (-1,0)]
     # get info for the surroundings of the agent (N-E-S-W)
     sur = [tuple(map(sum, zip(location, n))) for n in area]
-    sur_val = np.array([field[c[0], c[1]] for c in sur])
 
+    sur in bombs_location
+    bombs_location = [bomb[0] for bomb in bombs]
+
+    sur_val = np.array([field[c[0], c[1]] for c in sur])
     #print('coins: ', coins)
     #free_space = field == 0
     #--------------------------------------------------------------------------#
@@ -170,7 +174,7 @@ def state_to_features(game_state: dict) -> np.array:
     #--------------------------------------------------------------------------#
     # Relative distance to all bombs
     #print('game_state', game_state)
-    bombs = game_state['bombs']
+    #bombs = game_state['bombs']
     #trackNbombs = len(game_state['others']) + 1
     #print('game_state[others]', game_state['others'], len(game_state['others']))
     trackNbombs =  1
