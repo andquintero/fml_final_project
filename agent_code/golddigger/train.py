@@ -40,6 +40,7 @@ PLACEHOLDER_EVENT = "PLACEHOLDER"
 MOVED_TOWARDS_COIN = ['MOVED_TOWARDS_COIN' + str(n) for n in range(1,10)]
 MOVED_AWAY_FROM_COIN = ['MOVED_AWAY_FROM_COIN' + str(n) for n in range(1,10)]
 MOVED_BACK_AND_FORTH = 'MOVED_BACK_AND_FORTH'
+ITS_A_TRAP = 'ITS_A_TRAP'
 
 
 #------------------------------------------------------------------------------#
@@ -168,7 +169,9 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         # Idea: Add your own events to hand out rewards
         # Penalize moving back and forth
         reward_moving_back(self, events, new_game_state)
-        # Rewards according to coind position
+        # If the agent is trapped penalize
+        reward_its_a_trap(self, events, new_game_state)
+        # Rewards according to coin position
         reward_moving_to_coin(self, events, new_game_state)
         reward = reward_from_events(self, events)
         #print('events: ', events)
@@ -202,7 +205,9 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     # Idea: Add your own events to hand out rewards
     # Penalize moving back and forth
     reward_moving_back(self, events, last_game_state)
-    # Rewards according to coind position
+    # If the agent is trapped penalize
+    reward_its_a_trap(self, events, last_game_state)
+    # Rewards according to coin position
     reward_moving_to_coin(self, events, last_game_state)
     reward = reward_from_events(self, events)
     
@@ -294,6 +299,7 @@ def reward_from_events(self, events: List[str]) -> int:
         #e.MOVED_AWAY_FROM_COIN1 : -40,
 
         e.BOMB_DROPPED  : 10,
+        ITS_A_TRAP      : -500,
         #BOMB_EXPLODED : 
 
         e.CRATE_DESTROYED : 100,
@@ -370,6 +376,14 @@ def reward_moving_back(self, events, new_game_state):
         #print( "unique: ", np.unique(self.trainingXold[(-3,-1), :], axis=0))
         #if np.unique(self.trainingXold[(-3,-1), :], axis=0).shape[0] ==1 or np.unique(self.trainingXold[-3:-1], axis=0).shape[0] == 1:
         #if np.unique(self.trainingXold[-3:-1], axis=0).shape[0] == 1:
+
+def reward_its_a_trap(self, events, new_game_state):
+    if sum(self.trainingXnew[-1, 0:4] == 0) == 0:
+        events.append(ITS_A_TRAP)
+            
+
+
+
 
 
 def reward_moving_to_coin(self, events, new_game_state):
