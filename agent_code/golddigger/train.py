@@ -17,6 +17,7 @@ from lightgbm import LGBMRegressor
 from .resetRuleBased import reseter
 from .callbacks import random_prob
 from .callbacks import trackNcoins
+from .callbacks import trackNcrates
 #from sklearn.ensemble import GradientBoostingRegressor
 # HistGradientBoostingRegressor is still experimental requieres:
 # explicitly require this experimental feature
@@ -95,7 +96,7 @@ def setup_training(self):
     # Start GradientBoostingRegressor for every action
     reg = [LGBMRegressor(use_missing=False, zero_as_missing=False) for i in range(len(ACTIONS))]
     self.model = MultiRegression(reg)
-    self.nFeatures = 4 + (3 * trackNcoins)
+    self.nFeatures = 4 + (3 * trackNcoins) + (3 * trackNcrates) + 6
     if self.reset is True:
 
         self.random_prob = 1

@@ -131,31 +131,41 @@ def state_to_features(game_state: dict) -> np.array:
     to_fill = trackNcoins*3 - len(coinf)
     coinf = np.hstack((coinf, np.repeat(0, to_fill)))
 
-    # # Distance to 3 closest crates and number of crates that can be blown away at current position
-    # xcrate, ycrate = np.where(field==1)
-    # crates = [(xcrate[i], ycrate[i]) for i in range(len(xcrate))]
+    #--------------------------------------------------------------------------#
+    # Crate features
+    # Distance to 3 closest crates and number of crates that can be blown away at current position
+    xcrate, ycrate = np.where(field==1)
+    crates = [(xcrate[i], ycrate[i]) for i in range(len(xcrate))]
 
-    # if len(crates) > 0:
-    #     crate_dist = np.array([calculate_weighted_distance(graph, location, crate) for crate in crates])
-    #     crate_reldis = np.array(crates) - np.array(location)[None,]
-    #     idx = np.argsort(crate_dist)[0:trackNcrates]
-    #     cratef = np.hstack((crate_dist[idx, None], crate_reldis[idx, :])).flatten()
-    # else:
-    #     cratef = []
+    if len(crates) > 0:
+        crate_reldis = np.array(crates) - np.array(location)[None,]
+        idx = np.argsort(np.sum(np.abs(crate_reldis), axis=1))[0:trackNcrates]
+        #print('crate idx', idx, type(idx), idx.tolist())
+        crate_reldis = crate_reldis[idx]
+        crates2 = [crates[i] for i in idx]
+        crate_dist = np.array([calculate_weighted_distance(graph, location, crate) for crate in crates2])
 
-    # to_fill = trackNcrates*3 - len(cratef)
-    # cratef = np.hstack((cratef, np.repeat(0, to_fill)))
+        idx = np.argsort(crate_dist)[0:trackNcrates]
+        cratef = np.hstack((crate_dist[idx, None], crate_reldis[idx, :])).flatten()
+    else:
+        cratef = []
 
-    # crates_to_explode = []
-    # for direction in area:
-    #     loc = location
-    #     for i in range(1,4):
-    #         neighbor = tuple(map(sum, zip(loc, direction)))
-    #         if field[neighbor[0], neighbor[1]] == -1:
-    #             break
-    #         if neighbor in crates:
-    #             crates_to_explode.append(neighbor)
-    #         loc = neighbor
+    to_fill = trackNcrates*3 - len(cratef)
+    cratef = np.hstack((cratef, np.repeat(0, to_fill)))
+
+    # Number of crates that will explode
+    crates_to_explode = []
+    for direction in area:
+        loc = location
+        for i in range(1,4):
+            neighbor = tuple(map(sum, zip(loc, direction)))
+            if field[neighbor[0], neighbor[1]] == -1:
+                break
+            if neighbor in crates:
+                crates_to_explode.append(neighbor)
+            loc = neighbor
+    cratef = np.hstack((cratef, np.array(len(crates_to_explode))))
+    
 
     #--------------------------------------------------------------------------#
     # Relative distance to all bombs
@@ -216,7 +226,7 @@ def state_to_features(game_state: dict) -> np.array:
     else:
         bombsf = []
 
-    to_fill = trackNbombs*3 - len(bombsf)
+    to_fill = trackNbombs*4 - len(bombsf)
     if to_fill > 0:
         #print('bombsf to_fill:', to_fill)
         #print('bombsf nofill:', bombsf)
@@ -225,12 +235,15 @@ def state_to_features(game_state: dict) -> np.array:
 
     bombav = np.array(game_state['self'][2]*1) # if the BOMB action is available
     #bombav = np.repeat(game_state['self'][2]*1, trackNbombs)
-    print('bombav', bombav)
+    #print('bombav', bombav)
     bombsf = np.hstack((bombav, bombsf))
-    print('bombsf:', bombsf)
+    #print('bombsf:', bombsf)
     #--------------------------------------------------------------------------#
-    
-    features = np.hstack((sur_val, coinf))
+    # print('Feature sur_val n: ', sur_val.shape)
+    # print('Feature coinf n: ', coinf.shape)
+    # print('Feature cratef n: ', cratef.shape)
+    # print('Feature bombsf n: ', bombsf.shape)
+    features = np.hstack((sur_val, coinf, cratef, bombsf))
     return features.reshape(1, -1)
 
 def look_for_targets_dist(free_space, start, targets, logger=None):
