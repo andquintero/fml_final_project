@@ -99,7 +99,7 @@ def setup_training(self):
     # Start GradientBoostingRegressor for every action
     reg = [LGBMRegressor(use_missing=False, zero_as_missing=False) for i in range(len(ACTIONS))]
     self.model = MultiRegression(reg)
-    self.nFeatures = 4 + (3 * trackNcoins) + (3 * trackNcrates) + 6
+    self.nFeatures = 4 + (3 * trackNcoins) + (3 * trackNcrates) + 7
     if self.reset is True:
 
         self.random_prob = 1
@@ -149,14 +149,14 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     """
     self.logger.debug(f'Encountered game event(s) {", ".join(map(repr, events))} in step {new_game_state["step"]}')
     
+    #print('self location', location)
+
+
+    #print('Features:', state_to_features(new_game_state))
 
     if new_game_state['step'] > 1:
         _, _, _, location = old_game_state['self']
         location_history.append(location)
-        #print('self location', location_history)
-
-
-        #print('Features:', state_to_features(old_game_state))
         #print('self_action', self_action)
         #print('events: ', events)
         # if self_action is None:

@@ -262,24 +262,26 @@ def state_to_features(game_state: dict) -> np.array:
     free_tile_dist = [free_tile_dist[i] for i in idx]
 
     if np.any(np.array(free_tile_dist) >= 4):
+        #print('This is a good spot 4 tiles')
         good_spot = 1
     else:
         free_tiles = np.array([free_tiles[i] for i in idx])
         loc = np.array(location)
         if np.any(np.sum(free_tiles == loc, axis=1) == 0):
+            #print('This is a good spot for escape route')
             good_spot = 1
         else:
+            #print('This is a bad spot!!!')
             good_spot = 0
     
 
-    print('good spot: ', good_spot)
 
     #--------------------------------------------------------------------------#
     # print('Feature sur_val n: ', sur_val.shape)
     # print('Feature coinf n: ', coinf.shape)
     # print('Feature cratef n: ', cratef.shape)
     # print('Feature bombsf n: ', bombsf.shape)
-    features = np.hstack((sur_val, coinf, cratef, bombsf))
+    features = np.hstack((sur_val, coinf, cratef, bombsf, np.array(good_spot)))
     return features.reshape(1, -1)
 
 def look_for_targets_dist(free_space, start, targets, logger=None):
@@ -423,10 +425,14 @@ def make_empty_field_graph(game_state):
     :return: dict
     """
 
-    field = game_state['field']
+    field = game_state['field'].copy()
     bombs = game_state['bombs']
-    bombs_location = [bomb[0] for bomb in bombs]
+    _, _, _, location = game_state['self']
 
+    bombs_location = [bomb[0] for bomb in bombs]
+    bombs_location = [b for b in bombs_location if b != location]
+    for i,j in bombs_location:
+        field[i,j] = -1 
 
     # agent movements (top - right - down - left)
     area = [(0,-1), (1,0), (0,1), (-1,0)]
@@ -434,7 +440,7 @@ def make_empty_field_graph(game_state):
     # create graph for possible movements through the field
     x_0, y_0 = np.where(field == 0)
     zero_vals = [(x_0[i], y_0[i]) for i in range(len(x_0))]
-    zero_vals2 = [z for z in zero_vals if z not in bombs_location]
+    #zero_vals2 = [z for z in zero_vals if z not in bombs_location]
 
     targets = []
     for coord in zero_vals:
