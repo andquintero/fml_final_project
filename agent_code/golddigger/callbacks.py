@@ -23,6 +23,7 @@ from lightgbm import LGBMRegressor
 #reset = False
 random_prob = 0.1
 trackNcoins = 3
+trackNcrates = 3
 #------------------------------------------------------------------------------#
 
 ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
@@ -117,9 +118,9 @@ def state_to_features(game_state: dict) -> np.array:
     graph = make_field_graph(field)
     #--------------------------------------------------------------------------#
     # Distance to all coins
+
     if len(coins)>0:
         # calculate distance to each coin
-        #coin_dist = np.array([BFS_SP(graph, location, coin) for coin in coins])
         coin_dist = np.array([calculate_weighted_distance(graph, location, coin) for coin in coins])
         coin_reldis = np.array(coins) - np.array(location)[None,]
         idx = np.argsort(coin_dist)[0:trackNcoins]
@@ -129,6 +130,33 @@ def state_to_features(game_state: dict) -> np.array:
 
     to_fill = trackNcoins*3 - len(coinf)
     coinf = np.hstack((coinf, np.repeat(0, to_fill)))
+
+    # Distance to 3 closest crates and number of crates that can be blown away at current position
+    xcrate, ycrate = np.where(field==1)
+    crates = [(xcrate[i], ycrate[i]) for i in range(len(xcrate))]
+
+    if len(crates) > 0:
+        crate_dist = np.array([calculate_weighted_distance(graph, location, crate) for crate in crates])
+        crate_reldis = np.array(crates) - np.array(location)[None,]
+        idx = np.argsort(crate_dist)[0:trackNcrates]
+        cratef = np.hstack((crate_dist[idx, None], crate_reldis[idx, :])).flatten()
+    else:
+        cratef = []
+
+    to_fill = trackNcrates*3 - len(cratef)
+    cratef = np.hstack((cratef, np.repeat(0, to_fill)))
+
+    crates_to_explode = []
+    for direction in area:
+        loc = location
+        for i in range(1,4):
+            neighbor = tuple(map(sum, zip(loc, direction)))
+            if field[neighbor[0], neighbor[1]] == -1:
+                break
+            if neighbor in crates:
+                crates_to_explode.append(neighbor)
+            loc = neighbor
+
     #--------------------------------------------------------------------------#
     # Relative distance to all bombs
     #print('game_state', game_state)
@@ -307,7 +335,7 @@ def calculate_weighted_distance(graph, start, end):
     path = backpedal(start, end, parents)
     distance = return_distance(path, graph)
     return distance
-    
+
 
 def make_field_graph(field):
     """
