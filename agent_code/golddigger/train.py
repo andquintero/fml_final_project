@@ -389,7 +389,7 @@ def reward_its_a_trap(self, events, new_game_state):
         events.append(ITS_A_TRAP)
 
     if self.trainingXold[-1, 28] == 0 and self.trainingXold[-1, 23] == 1 and self.trainingXnew[-1,23] == 0:
-        events.append(TS_A_TRAP)
+        events.append(ITS_A_TRAP)
 
 def reward_moving_to_coin(self, events, new_game_state):
 
