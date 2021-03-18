@@ -221,25 +221,51 @@ def look_for_targets_dist(free_space, start, targets, logger=None):
     return dis
 
 
-# define function for BFS
-# https://www.geeksforgeeks.org/building-an-undirected-graph-and-finding-shortest-path-using-dictionaries-in-python/
-def BFS_SP(graph, start, goal): 
-    explored = [] 
-    queue = [[start]] 
-    if start == goal: 
-        return 0
-    while queue: 
-        path = queue.pop(0) 
-        node = path[-1] 
-        if node not in explored: 
-            neighbours = graph[node] 
-            for neighbour in neighbours: 
-                new_path = list(path) 
-                new_path.append(neighbour) 
-                queue.append(new_path) 
-                if neighbour == goal: 
-                    return len(new_path)-1
-            explored.append(node) 
+# Dijkstra algorithm (weighted shortest path)
+# adapted from https://likegeeks.com/python-dijkstras-algorithm/
+def calculate_weighted_distance(graph, start, end):
+    
+    graph = copy.deepcopy(graph)
+    
+    def initialize_costs(source, graph):
+        nodes = list(graph.keys())
+        values = np.repeat(np.inf, len(nodes))
+        values[nodes.index(source)] = 0
+        return dict(zip(nodes, values))
+
+    def search(source, target, graph, costs, parents={}):
+        nextNode = source
+        while nextNode != target:
+            for neighbor in graph[nextNode]:
+                if graph[nextNode][neighbor] + costs[nextNode] < costs[neighbor]:
+                    costs[neighbor] = graph[nextNode][neighbor] + costs[nextNode]
+                    parents[neighbor] = nextNode
+                del graph[neighbor][nextNode]
+            del costs[nextNode]
+            nextNode = min(costs, key=costs.get)
+        return parents
+
+    def backpedal(source, target, searchResult):
+        node = target
+        backpath = [target]
+        path = []
+        while node != source:
+            backpath.append(searchResult[node])
+            node = searchResult[node]
+        for i in range(len(backpath)):
+            path.append(backpath[-i - 1])
+        return path
+
+    def return_distance(path, graph):
+        steps = [(path[i], path[i+1]) for i in range(len(path)-1)]
+        return np.sum(np.array([graph[x[0]][x[1]] for x in steps]))
+
+    costs = initialize_costs(start, graph)
+    parents = search(start, end, graph, costs, parents={})
+    path = backpedal(start, end, parents)
+    distance = return_distance(path, graph)
+    return distance
+    
 
 def make_field_graph(field):
     """
@@ -253,14 +279,17 @@ def make_field_graph(field):
     # agent movements (top - right - down - left)
     area = [(0,-1), (1,0), (0,1), (-1,0)]
 
-    # create graph for possible movements through the field
-    x_0, y_0 = np.where(field == 0)
-    zero_vals = [(x_0[i], y_0[i]) for i in range(len(x_0))]
+    # create graph for possible movements through the field (free tiles and crates)
+    x0, y0 = np.where(np.logical_or(nums==0, nums==1))
+    nodes = [(x0[i], y0[i]) for i in range(len(x0))]
     targets = []
-    for coord in zero_vals:
-        pb = [tuple(map(sum, zip(coord, n))) for n in area]
-        targets.append([x for x in pb if x in zero_vals])
+
+    # this time we are creating a graph with weighted edges (1 if next field is a free tile, 0 if)
+    for coord in nodes:
+        pb = [tuple(map(sum, zip(coord, n))) for n in neighboring]
+        targets.append({x: 1 if nums[x[0], x[1]] == 0 else 3 for x in pb if x in nodes})
     
-    return dict(zip(zero_vals, targets))    
+    return dict(zip(nodes, targets))   
+
 
     
