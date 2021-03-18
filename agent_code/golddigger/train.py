@@ -324,6 +324,7 @@ def reward_from_events(self, events: List[str]) -> int:
     crate_vals = np.hstack((np.linspace(30,10,trackNcrates), np.linspace(-60,-20,trackNcrates)))
 
     game_rewards.update(dict(zip(coin_keys, coin_vals)))
+    game_rewards.update(dict(zip(crate_keys, crate_vals)))
 
     reward_sum = 0
     for event in events:
