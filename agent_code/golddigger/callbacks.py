@@ -7,6 +7,7 @@ import numpy as np
 #------------------------------------------------------------------------------#
 # Imported by us
 from random import shuffle
+import copy
 #from sklearn.multioutput import MultiOutputRegressor
 from lightgbm import LGBMRegressor
 
@@ -118,7 +119,8 @@ def state_to_features(game_state: dict) -> np.array:
     # Distance to all coins
     if len(coins)>0:
         # calculate distance to each coin
-        coin_dist = np.array([BFS_SP(graph, location, coin) for coin in coins])
+        #coin_dist = np.array([BFS_SP(graph, location, coin) for coin in coins])
+        coin_dist = np.array([calculate_weighted_distance(graph, location, coin) for coin in coins])
         coin_reldis = np.array(coins) - np.array(location)[None,]
         idx = np.argsort(coin_dist)[0:trackNcoins]
         coinf = np.hstack((coin_dist[idx, None], coin_reldis[idx, :])).flatten()
@@ -131,11 +133,15 @@ def state_to_features(game_state: dict) -> np.array:
     # Relative distance to all bombs
     #print('game_state', game_state)
     bombs = game_state['bombs']
+    trackNbombs = len(game_state['others']) + 1
+    #print('game_state[others]', game_state['others'], len(game_state['others']))
+    #trackNbombs =  1
+    
 
     # if it can place a bomb
     # if the bomb will harm you
-    # relative distance to bomb
     # ticker
+    # relative distance to bomb
 
     #xx
     if len(bombs)>0:
@@ -145,11 +151,42 @@ def state_to_features(game_state: dict) -> np.array:
         #bomb_dist = np.array([BFS_SP(graph, location, coin) for coin in coins])
         bomb_reldis = np.array(bombs_location) - np.array(location)[None,]
         # shortest distance in x or y axis
-        idx = np.argsort(np.amin(bomb_reldis, axis=1))[0:len(bombs)]
-        print('bombsf idx:', idx, type(idx))
-        print('bomb_reldis :', bomb_reldis)
-        bombsf = np.hstack((bombs_ticker[idx, None], bomb_reldis[idx, :])).flatten()
-        
+        bomb_mindist = np.amin(np.abs(bomb_reldis), axis=1)
+        idx = np.argsort(bomb_mindist)[0:len(bombs)]
+        #print('bombsf idx:', idx, type(idx))
+        #print('bomb_reldis :', bomb_reldis)
+        #print('bombs_location :', bombs_location)
+
+        for i in range(len(bombs_location)):
+            print('bomb_mindist[i]', bomb_mindist[i])
+            bombl = bombs_location[i]
+            if bomb_mindist[i] > 4:
+                "NO HARM"
+            else:
+                # check if there are walls
+                field[bombl[0]:location[0]]
+                print('bombl', bombl)
+                print('location', location)
+                print('range bomb x:', field[bombl[0]:location[0], location[1]])
+                print('range bomb y:', field[location[0], bombl[1]:location[1]])
+
+            
+
+            field
+
+            bomb_reldis
+            # look only at bombs that are closer than 4 tiles
+
+            #print('field :', field)
+            #print('bombs_location :', bombl)
+            #print('location :', location)
+            #print('field location :', field[location])
+
+        #location
+
+
+
+        bombsf = np.hstack((bombs_ticker[idx, None], bomb_reldis[idx, :])).flatten()        
 
     else:
         bombsf = []
