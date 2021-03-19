@@ -216,7 +216,7 @@ def state_to_features(game_state: dict) -> np.array:
     #bombav = np.repeat(game_state['self'][2]*1, trackNbombs)
     #print('bombav', bombav)
     bombsf = np.hstack((bombav, bombsf))
-    print('bombsf:', bombsf)
+    #print('bombsf:', bombsf)
 
     #--------------------------------------------------------------------------#
     # Find if this is a good location for dropping a bomb 
@@ -239,18 +239,41 @@ def state_to_features(game_state: dict) -> np.array:
     idx = np.where([elem != None for elem in free_tile_dist_and_escape])[0]
     free_tile_dist_and_escape = [free_tile_dist_and_escape[i] for i in idx]
     #print('free_tile_dist_and_escape', free_tile_dist_and_escape)
-    free_tile_dist = [freetile[0] for freetile in free_tile_dist_and_escape]
-    free_tile_escape = [freetile[1] for freetile in free_tile_dist_and_escape]
+    free_tile_dist = [freetile[0] for freetile in free_tile_dist_and_escape] # Distance
+    free_tile_escape = [freetile[1] for freetile in free_tile_dist_and_escape] # Paths
     #print('free_tile_dist', free_tile_dist)
 
     free_tiles = [free_tiles[i] for i in idx]
 
-    long_escapes = np.where(np.array(free_tile_dist) >= 40)[0]
-    short_scapes = np.where(np.sum(np.array(free_tiles) == np.array(location), axis=1) == 0)[0]
-    free_tiles = [free_tiles[i] for i in short_scapes]
+    # long_escapes = np.where(np.array(free_tile_dist) >= 40)[0]
+    # short_scapes = np.where(np.sum(np.array(free_tiles) == np.array(location), axis=1) == 0)[0]
+    long_escapes = np.array(free_tile_dist) >= 40 # This is a good spot 4 tiles
+    short_scapes = np.sum(np.array(free_tiles) == np.array(location), axis=1) == 0 # This is a good spot for escape route
+    good_spot = 1 if any(long_escapes) or any(short_scapes) else 0
 
-    escape_tile1 = [free_tile_escape[i][1] for i in long_escapes]
-    escape_tile2 =[tile_path[1] for free_tile in free_tiles for tile_path in free_tile_escape if free_tile in tile_path]
+
+    # Find which routes to a free tile are a trap!
+    if len(bombs)>0:
+        # returns a list for each path, 1 Harm, 0 No harm
+        danger_last_tiles = [explosion_zone(field, bomb_reldis, bombs_location, tile_path[-1]) for tile_path in free_tile_escape]
+        # if there are no harmful bombs in the last tile
+        no_danger_last_tiles = np.where([1 not in danger_last_tile for danger_last_tile in danger_last_tiles])[0]
+        good_escape_routes = [free_tile_escape[i] for i in no_danger_last_tiles]
+        # get the next step in the good escape routes
+        # If the path is len 1, then the best option for this route is to staty still
+        good_next_tiles = [route[1] if len(route)>1 else route[0] for route in good_escape_routes ]
+        good_next_tiles = list(set(good_next_tiles)) # the the unique good tiles
+
+
+        print('good_next_tiles:', good_next_tiles)
+
+
+    # bomb_harm = explosion_zone(field, bomb_reldis, bombs_location, location)
+
+    # free_tiles = [free_tiles[i] for i in short_scapes]
+
+    # escape_tile1 = [free_tile_escape[i][1] for i in long_escapes]
+    # escape_tile2 =[tile_path[1] for free_tile in free_tiles for tile_path in free_tile_escape if free_tile in tile_path]
 
     #print('escape_tile1', escape_tile1)
     #print('escape_tile2', escape_tile2)
@@ -258,18 +281,6 @@ def state_to_features(game_state: dict) -> np.array:
     # Safe path is a path tha you can reach before bomb explodes
     # len of path should be less or equal than ticker
     # If the end point of the path is the explotion range, then it is not a good path
-
-    if len(long_escapes) > 0:
-        #print('This is a good spot 4 tiles')
-        good_spot = 1
-    else:
-        
-        if len(short_scapes)>0:
-            #print('This is a good spot for escape route')
-            good_spot = 1
-        else:
-            #print('This is a bad spot!!!')
-            good_spot = 0
     
 
 
@@ -279,6 +290,7 @@ def state_to_features(game_state: dict) -> np.array:
     # print('Feature cratef n: ', cratef.shape)
     # print('Feature bombsf n: ', bombsf.shape)
     features = np.hstack((sur_val, coinf, cratef, bombsf, np.array(good_spot)))
+    #print('features: ', features)
     return features.reshape(1, -1)
 
 def explosion_zone(field, bomb_reldis, bombs_location, location):
@@ -295,6 +307,7 @@ def explosion_zone(field, bomb_reldis, bombs_location, location):
     Returns:
         coordinate of first step towards closest target or towards tile closest to any target.
     """
+    #print('location query: ', location)
     # calculate relative distance to each bomb
     bombs_location = np.array(bombs_location)
     #bombs_ticker = np.array([bomb[1] for bomb in bombs])
@@ -505,7 +518,7 @@ def BFS_SP(graph, start, goal):
     explored = [] 
     queue = [[start]] 
     if start == goal: 
-        return (0, start)
+        return (0, [start])
     while queue: 
         path = queue.pop(0) 
         node = path[-1] 
