@@ -151,14 +151,25 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     """
     self.logger.debug(f'Encountered game event(s) {", ".join(map(repr, events))} in step {new_game_state["step"]}')
     
-    #print('self location', location)
-
-
-    #print('Features:', state_to_features(new_game_state))
+    new_features = state_to_features(new_game_state)
+    # if new_game_state['step'] == 1:
+    #     print('Features:', new_features)
+    #     print('Bombs action available: ',  new_features[0,23]==1)
+    #     print('Good spot for bomb: ',  new_features[0,28]==1)
+    #     print('Escape routes: ',  new_features[0,29:34])
 
     if new_game_state['step'] > 1:
         _, _, _, location = old_game_state['self']
         location_history.append(location)
+
+        old_features = state_to_features(old_game_state)
+
+        # print('self location', location)
+        # print('Features:', old_features)
+        # print('Bombs action available: ',  old_features[0,23]==1)
+        # print('Good spot for bomb: ',  old_features[0,28]==1)
+        # print('Escape routes: ',  old_features[0,29:34])
+        
         #print('self_action', self_action)
         #print('events: ', events)
         # if self_action is None:
@@ -166,8 +177,11 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         #     print('self_action', self_action)
 
         # add old and new state
-        self.trainingXold = np.vstack((self.trainingXold, state_to_features(old_game_state)))
-        self.trainingXnew = np.vstack((self.trainingXnew, state_to_features(new_game_state)))
+        # self.trainingXold = np.vstack((self.trainingXold, state_to_features(old_game_state)))
+        # self.trainingXnew = np.vstack((self.trainingXnew, state_to_features(new_game_state)))
+        self.trainingXold = np.vstack((self.trainingXold, old_features))
+        self.trainingXnew = np.vstack((self.trainingXnew, new_features))
+
         self.terminal = np.vstack((self.terminal, False))
 
         # Idea: Add your own events to hand out rewards
@@ -304,7 +318,7 @@ def reward_from_events(self, events: List[str]) -> int:
         #e.MOVED_TOWARDS_COIN1   : 20,
         #e.MOVED_AWAY_FROM_COIN1 : -40,
 
-        e.BOMB_DROPPED  : -5,
+        e.BOMB_DROPPED  : 5,
         ITS_A_TRAP      : -500,
         #BOMB_EXPLODED : 
 
@@ -407,7 +421,7 @@ def reward_its_a_trap(self, events, new_game_state):
         events.append(ITS_A_TRAP)
     
     # Check if the seleced path was a dead end
-    if sum(self.trainingXnew[-1, 29:-1] == 0) == 0 :
+    if all(self.trainingXnew[-1, 29:34] == -1)  :
         events.append(ITS_A_TRAP)
     
 

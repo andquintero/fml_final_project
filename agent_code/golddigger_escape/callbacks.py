@@ -250,12 +250,32 @@ def state_to_features(game_state: dict) -> np.array:
     long_escapes = np.array(free_tile_dist) >= 40 # This is a good spot 4 tiles
     short_scapes = np.sum(np.array(free_tiles) == np.array(location), axis=1) == 0 # This is a good spot for escape route
     good_spot = 1 if any(long_escapes) or any(short_scapes) else 0  # good spot =1, bad spot = 0
+    #print('free_tile_escape', free_tile_escape)
 
+    # Safe path is a path tha you can reach before bomb explodes
+    # len of path should be less or equal than ticker
+    # If the end point of the path is the explotion range, then it is not a good path
 
     # Find which routes to a free tile are a trap!
     if len(bombs)>0:
+        # Filter out paths that are not reachable before bomb goes off
+
+        
         # returns a list for each path, 1 Harm, 0 No harm
-        danger_last_tiles = [explosion_zone(field, bomb_reldis, bombs_location, tile_path[-1]) for tile_path in free_tile_escape]
+        danger_last_tiles = []
+        for tile_path in free_tile_escape:
+            x = []
+            for i in range(len(bombs_location)):
+                if len(tile_path) < bombs_ticker[i]:
+                    # "Dead end"
+                    x.append(1)
+                else:
+                    #print('bombs_location', bombs_location, 'aaaaaa ',  bombs_location[i])
+                    x.extend(explosion_zone(field, bomb_reldis[i], [bombs_location[i]], tile_path[-1]))
+            danger_last_tiles.append(x)
+
+
+        #danger_last_tiles = [explosion_zone(field, bomb_reldis, bombs_location, tile_path[-1]) for tile_path in free_tile_escape]
         # if there are no harmful bombs in the last tile
         no_danger_last_tiles = np.where([1 not in danger_last_tile for danger_last_tile in danger_last_tiles])[0]
         good_escape_routes = [free_tile_escape[i] for i in no_danger_last_tiles]
@@ -274,7 +294,7 @@ def state_to_features(game_state: dict) -> np.array:
             good_step = np.repeat(-1, 5)
         #print('good_next_ step features to pos:',  good_step)
     else:
-        good_step = np.hstack((sur_val, 0))
+        good_step = np.hstack((np.abs(sur_val)*-1, 0))
         # agent movements (top - right - down - left)
         # area = [(0,-1), (1,0), (0,1), (-1,0)]
         # # get info for the surroundings of the agent (N-E-S-W)
@@ -299,10 +319,6 @@ def state_to_features(game_state: dict) -> np.array:
 
     #print('escape_tile1', escape_tile1)
     #print('escape_tile2', escape_tile2)
-
-    # Safe path is a path tha you can reach before bomb explodes
-    # len of path should be less or equal than ticker
-    # If the end point of the path is the explotion range, then it is not a good path
     
 
 
@@ -322,7 +338,7 @@ def explosion_zone(field, bomb_reldis, bombs_location, location):
     DANGER  ZONE!
 
     Args:
-        fiel: The current fielf of the game
+        field: The current fielf of the game
         bombs_location: the coordinate from which to begin the search.
         targets: list or array holding the coordinates of all target tiles.
         logger: optional logger object for debugging.
