@@ -113,6 +113,7 @@ def setup_training(self):
         self.trainingQ    = np.empty((0,len(ACTIONS)))
         self.rewards      = np.empty((0,1))
         self.action       = np.empty((0,1))
+        self.terminal     = np.empty((0,1))
 
 
     else:
@@ -124,6 +125,7 @@ def setup_training(self):
         self.rewards = np.load('data/rewards.npy')
         self.trainingQ = np.load('data/trainingQ.npy')
         self.action = np.load('data/action.npy')
+        self.terminal = np.load('data/terminal.npy')
 
         #print('self.trainingQ:', self.trainingQ)
         self.model.fit(self.trainingXold, self.trainingQ)
@@ -166,7 +168,7 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         # add old and new state
         self.trainingXold = np.vstack((self.trainingXold, state_to_features(old_game_state)))
         self.trainingXnew = np.vstack((self.trainingXnew, state_to_features(new_game_state)))
-
+        self.terminal = np.vstack((self.terminal, False))
 
         # Idea: Add your own events to hand out rewards
         # Penalize moving back and forth
@@ -203,7 +205,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     # Update old and new state tables
     self.trainingXold = np.vstack((self.trainingXold, self.trainingXnew[-1]))
     self.trainingXnew = np.vstack((self.trainingXnew, state_to_features(last_game_state)))
-
+    self.terminal = np.vstack((self.terminal, True))
     
     # Idea: Add your own events to hand out rewards
     # Penalize moving back and forth
@@ -244,6 +246,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     self.trainingQ = self.trainingQ[unique_pairs,]
     self.rewards = self.rewards[unique_pairs,]
     self.action = self.action[unique_pairs,]
+    self.terminal = self.terminal[unique_pairs]
 
     # update Q values
     #print('sumsum', np.sum(~np.isnan(self.trainingQ), axis=0))
@@ -274,7 +277,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     np.save('data/rewards.npy', self.rewards)
     np.save('data/trainingQ.npy', self.trainingQ)
     np.save('data/action.npy', self.action)
-
+    np.save('data/terminal.npy', self.terminal )
 
     #print('self.trainingXold:', self.trainingXold.shape)
     print("End of round, step:", last_game_state['step'])
@@ -361,10 +364,13 @@ def update_Q_values(self):
         reward = self.rewards[i]
 
         # Update Q
-        new_v = q_values[i]
-        q_new = reward + (GAMMA * new_v)
-        q_update = q_old + (ALPHA * (q_new - q_old))
-        #q_update [idx[0], idx[1]] = q_toupdate
+        if self.terminal[i] is not True:
+            new_v = q_values[i]
+            q_new = reward + (GAMMA * new_v)
+            q_update = q_old + (ALPHA * (q_new - q_old))
+            #q_update [idx[0], idx[1]] = q_toupdate
+        else:
+            q_update = reward
         self.trainingQ[i, idx_action] = q_update
 
 def reward_moving_back(self, events, new_game_state):

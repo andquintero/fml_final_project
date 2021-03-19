@@ -21,7 +21,7 @@ from lightgbm import LGBMRegressor
 ## WARNING!!!!
 # if set to True, reset the whole training
 #reset = False
-random_prob = 0.3
+random_prob = 0.1
 trackNcoins = 3
 trackNcrates = 3
 #------------------------------------------------------------------------------#
@@ -71,7 +71,7 @@ def act(self, game_state: dict) -> str:
             return a
         # 100%: walk in any direction
         self.logger.debug("Choosing action purely at random.")
-        return np.random.choice(ACTIONS, p=[.2, .2, .2, .2, .1, .1])
+        return np.random.choice(ACTIONS, p=[.25, .25, .25, .25])
 
     self.logger.debug("Querying model for action.")
     current_features = state_to_features(game_state)
@@ -104,20 +104,12 @@ def state_to_features(game_state: dict) -> np.array:
     field = game_state['field']
     coins = game_state['coins']
     name, score, bomb, location = game_state['self']
-    bombs = game_state['bombs']
 
     # agent movements (top - right - down - left)
     area = [(0,-1), (1,0), (0,1), (-1,0)]
     # get info for the surroundings of the agent (N-E-S-W)
     sur = [tuple(map(sum, zip(location, n))) for n in area]
-
-    bombs_location = [bomb[0] for bomb in bombs]
-    idx = np.where([s in bombs_location for s in sur])[0]
-
     sur_val = np.array([field[c[0], c[1]] for c in sur])
-
-    if len(idx) > 0:
-        sur_val[idx] = -1
 
     #print('coins: ', coins)
     #free_space = field == 0
@@ -129,6 +121,10 @@ def state_to_features(game_state: dict) -> np.array:
 
     if len(coins)>0:
         # calculate distance to each coin
+<<<<<<< HEAD
+        #coin_dist = np.array([BFS_SP(graph, location, coin) for coin in coins])
+=======
+>>>>>>> 62b221c2637f782ad5bf4a812e0ed4247b6a51fd
         coin_dist = np.array([calculate_weighted_distance(graph, location, coin) for coin in coins])
         coin_reldis = np.array(coins) - np.array(location)[None,]
         idx = np.argsort(coin_dist)[0:trackNcoins]
@@ -139,20 +135,13 @@ def state_to_features(game_state: dict) -> np.array:
     to_fill = trackNcoins*3 - len(coinf)
     coinf = np.hstack((coinf, np.repeat(0, to_fill)))
 
-    #--------------------------------------------------------------------------#
-    # Crate features
     # Distance to 3 closest crates and number of crates that can be blown away at current position
     xcrate, ycrate = np.where(field==1)
     crates = [(xcrate[i], ycrate[i]) for i in range(len(xcrate))]
 
     if len(crates) > 0:
+        crate_dist = np.array([calculate_weighted_distance(graph, location, crate) for crate in crates])
         crate_reldis = np.array(crates) - np.array(location)[None,]
-        idx = np.argsort(np.sum(np.abs(crate_reldis), axis=1))[0:trackNcrates]
-        #print('crate idx', idx, type(idx), idx.tolist())
-        crate_reldis = crate_reldis[idx]
-        crates2 = [crates[i] for i in idx]
-        crate_dist = np.array([calculate_weighted_distance(graph, location, crate) for crate in crates2])
-
         idx = np.argsort(crate_dist)[0:trackNcrates]
         cratef = np.hstack((crate_dist[idx, None], crate_reldis[idx, :])).flatten()
     else:
@@ -161,7 +150,6 @@ def state_to_features(game_state: dict) -> np.array:
     to_fill = trackNcrates*3 - len(cratef)
     cratef = np.hstack((cratef, np.repeat(0, to_fill)))
 
-    # Number of crates that will explode
     crates_to_explode = []
     for direction in area:
         loc = location
@@ -172,16 +160,14 @@ def state_to_features(game_state: dict) -> np.array:
             if neighbor in crates:
                 crates_to_explode.append(neighbor)
             loc = neighbor
-    cratef = np.hstack((cratef, np.array(len(crates_to_explode))))
-    
 
     #--------------------------------------------------------------------------#
     # Relative distance to all bombs
     #print('game_state', game_state)
-    #bombs = game_state['bombs']
-    #trackNbombs = len(game_state['others']) + 1
+    bombs = game_state['bombs']
+    trackNbombs = len(game_state['others']) + 1
     #print('game_state[others]', game_state['others'], len(game_state['others']))
-    trackNbombs =  1
+    #trackNbombs =  1
     
 
     # if it can place a bomb
@@ -198,90 +184,52 @@ def state_to_features(game_state: dict) -> np.array:
         bomb_reldis = np.array(bombs_location) - np.array(location)[None,]
         # shortest distance in x or y axis
         bomb_mindist = np.amin(np.abs(bomb_reldis), axis=1)
-        idx_bombs = np.argsort(bomb_mindist)[0:len(bombs)]
+        idx = np.argsort(bomb_mindist)[0:len(bombs)]
+        #print('bombsf idx:', idx, type(idx))
+        #print('bomb_reldis :', bomb_reldis)
+        #print('bombs_location :', bombs_location)
 
-        # Find if the bomb can harm the player
-        bomb_harm = []
         for i in range(len(bombs_location)):
-            # Location of bomb and player
-            bombl = np.array(bombs_location[i])
-            loc = np.array(location)
-            if bomb_mindist[i] > 4 or not any(bombl == loc):
-                # 'NO HARM'
-                bomb_harm.append(0)
+            print('bomb_mindist[i]', bomb_mindist[i])
+            bombl = bombs_location[i]
+            if bomb_mindist[i] > 4:
+                "NO HARM"
             else:
-                # select index of the axis in which bomb can harm you
-                idx = np.argmax(bombl == loc) # 0 x axis, 1 y axis
-                if idx == 0:
-                    f = min((bombl[1], loc[1]))
-                    t = max((bombl[1], loc[1]))
-                    bomb_range = field[loc[0], f:t]
-                else:
-                    f = min((bombl[0], loc[0]))
-                    t = max((bombl[0], loc[0]))
-                    bomb_range = field[f:t, loc[1]]
                 # check if there are walls
-                if len(bomb_range) > 4 or sum(bomb_range == -1) > 0:
-                    # 'NO HARM'
-                    bomb_harm.append(0)
-                else:
-                    # 'HARM'
-                    bomb_harm.append(1)
+                field[bombl[0]:location[0]]
+                print('bombl', bombl)
+                print('location', location)
+                print('range bomb x:', field[bombl[0]:location[0], location[1]])
+                print('range bomb y:', field[location[0], bombl[1]:location[1]])
+
+            
+
+            field
+
+            bomb_reldis
+            # look only at bombs that are closer than 4 tiles
+
+            #print('field :', field)
+            #print('bombs_location :', bombl)
+            #print('location :', location)
+            #print('field location :', field[location])
+
+        #location
 
 
-        bombsf = np.hstack((np.array(bomb_harm)[idx_bombs, None], bombs_ticker[idx_bombs, None], bomb_reldis[idx_bombs, :])).flatten()        
+
+        bombsf = np.hstack((bombs_ticker[idx, None], bomb_reldis[idx, :])).flatten()        
 
     else:
         bombsf = []
 
-    to_fill = trackNbombs*4 - len(bombsf)
-    if to_fill > 0:
-        #print('bombsf to_fill:', to_fill)
-        #print('bombsf nofill:', bombsf)
-        # we have to choose if nan or a high number
-        bombsf = np.hstack((bombsf, np.repeat(np.nan, to_fill)))
-
-    bombav = np.array(game_state['self'][2]*1) # if the BOMB action is available
-    #bombav = np.repeat(game_state['self'][2]*1, trackNbombs)
-    #print('bombav', bombav)
-    bombsf = np.hstack((bombav, bombsf))
-    #print('bombsf:', bombsf)
-
-    # connect graph collecting only currently free fields
-    graph = make_empty_field_graph(game_state)
-
-    # filter out free fields in agent radius of 4
-    free_tiles = list(graph.keys())
-    tile_dis = np.abs(np.array(free_tiles) - np.array(location)[None,])
-    idx = np.where(np.sum(tile_dis <= 4, axis=1) == 2)[0]
-    free_tiles = [free_tiles[i] for i in idx]
-
-    # calculate if they are accessible and if yes, the shortest path
-    free_tile_dist = [BFS_SP(graph, location, tile) for tile in free_tiles]
-    idx = np.where(np.array(free_tile_dist) != None)[0]
-    free_tile_dist = [free_tile_dist[i] for i in idx]
-
-    if np.any(np.array(free_tile_dist) >= 4):
-        #print('This is a good spot 4 tiles')
-        good_spot = 1
-    else:
-        free_tiles = np.array([free_tiles[i] for i in idx])
-        loc = np.array(location)
-        if np.any(np.sum(free_tiles == loc, axis=1) == 0):
-            #print('This is a good spot for escape route')
-            good_spot = 1
-        else:
-            #print('This is a bad spot!!!')
-            good_spot = 0
-    
-
-
+    to_fill = 4*3 - len(bombsf)
+    # we have to choose if nan or a high number
+    bombsf = np.hstack((bombsf, np.repeat(np.nan, to_fill)))
+    print('bombsf:', bombsf)
     #--------------------------------------------------------------------------#
-    # print('Feature sur_val n: ', sur_val.shape)
-    # print('Feature coinf n: ', coinf.shape)
-    # print('Feature cratef n: ', cratef.shape)
-    # print('Feature bombsf n: ', bombsf.shape)
-    features = np.hstack((sur_val, coinf, cratef, bombsf, np.array(good_spot)))
+    
+    features = np.hstack((sur_val, coinf))
     return features.reshape(1, -1)
 
 def look_for_targets_dist(free_space, start, targets, logger=None):
@@ -412,59 +360,11 @@ def make_field_graph(field):
     # this time we are creating a graph with weighted edges (1 if next field is a free tile, 0 if)
     for coord in nodes:
         pb = [tuple(map(sum, zip(coord, n))) for n in area]
+<<<<<<< HEAD
         targets.append({x: 1 if field[x[0], x[1]] == 0 else 3 for x in pb if x in nodes})
+=======
+        targets.append({x: 1 if nums[x[0], x[1]] == 0 else 3 for x in pb if x in nodes})
+>>>>>>> 62b221c2637f782ad5bf4a812e0ed4247b6a51fd
     
     return dict(zip(nodes, targets))   
 
-
-def make_empty_field_graph(game_state):
-    """
-    Takes as input the field and returns a graph representation
-
-    :param field:  np.array
-    :return: dict
-    """
-
-    field = game_state['field'].copy()
-    bombs = game_state['bombs']
-    _, _, _, location = game_state['self']
-
-    bombs_location = [bomb[0] for bomb in bombs]
-    bombs_location = [b for b in bombs_location if b != location]
-    for i,j in bombs_location:
-        field[i,j] = -1 
-
-    # agent movements (top - right - down - left)
-    area = [(0,-1), (1,0), (0,1), (-1,0)]
-
-    # create graph for possible movements through the field
-    x_0, y_0 = np.where(field == 0)
-    zero_vals = [(x_0[i], y_0[i]) for i in range(len(x_0))]
-    #zero_vals2 = [z for z in zero_vals if z not in bombs_location]
-
-    targets = []
-    for coord in zero_vals:
-        pb = [tuple(map(sum, zip(coord, n))) for n in area]
-        targets.append([x for x in pb if x in zero_vals])
-    
-    return dict(zip(zero_vals, targets))  
-
-# define function for BFS
-# https://www.geeksforgeeks.org/building-an-undirected-graph-and-finding-shortest-path-using-dictionaries-in-python/
-def BFS_SP(graph, start, goal): 
-    explored = [] 
-    queue = [[start]] 
-    if start == goal: 
-        return 0
-    while queue: 
-        path = queue.pop(0) 
-        node = path[-1] 
-        if node not in explored: 
-            neighbours = graph[node] 
-            for neighbour in neighbours: 
-                new_path = list(path) 
-                new_path.append(neighbour) 
-                queue.append(new_path) 
-                if neighbour == goal: 
-                    return len(new_path)-1
-            explored.append(node)

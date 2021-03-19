@@ -194,42 +194,13 @@ def state_to_features(game_state: dict) -> np.array:
         # calculate relative distance to each bomb
         bombs_location = [bomb[0] for bomb in bombs]
         bombs_ticker = np.array([bomb[1] for bomb in bombs])
-        #bomb_dist = np.array([BFS_SP(graph, location, coin) for coin in coins])
+        #Relative distance to bomb in X and Y axis
         bomb_reldis = np.array(bombs_location) - np.array(location)[None,]
-        # shortest distance in x or y axis
-        bomb_mindist = np.amin(np.abs(bomb_reldis), axis=1)
-        idx_bombs = np.argsort(bomb_mindist)[0:len(bombs)]
-
+        
         # Find if the bomb can harm the player
-        bomb_harm = []
-        for i in range(len(bombs_location)):
-            # Location of bomb and player
-            bombl = np.array(bombs_location[i])
-            loc = np.array(location)
-            if bomb_mindist[i] > 4 or not any(bombl == loc):
-                # 'NO HARM'
-                bomb_harm.append(0)
-            else:
-                # select index of the axis in which bomb can harm you
-                idx = np.argmax(bombl == loc) # 0 x axis, 1 y axis
-                if idx == 0:
-                    f = min((bombl[1], loc[1]))
-                    t = max((bombl[1], loc[1]))
-                    bomb_range = field[loc[0], f:t]
-                else:
-                    f = min((bombl[0], loc[0]))
-                    t = max((bombl[0], loc[0]))
-                    bomb_range = field[f:t, loc[1]]
-                # check if there are walls
-                if len(bomb_range) > 4 or sum(bomb_range == -1) > 0:
-                    # 'NO HARM'
-                    bomb_harm.append(0)
-                else:
-                    # 'HARM'
-                    bomb_harm.append(1)
+        bomb_harm = explosion_zone(field, bomb_reldis, bombs_location, location)
 
-
-        bombsf = np.hstack((np.array(bomb_harm)[idx_bombs, None], bombs_ticker[idx_bombs, None], bomb_reldis[idx_bombs, :])).flatten()        
+        bombsf = np.hstack((np.array(bomb_harm)[:, None], bombs_ticker[:, None], bomb_reldis)).flatten()        
 
     else:
         bombsf = []
@@ -245,7 +216,11 @@ def state_to_features(game_state: dict) -> np.array:
     #bombav = np.repeat(game_state['self'][2]*1, trackNbombs)
     #print('bombav', bombav)
     bombsf = np.hstack((bombav, bombsf))
-    #print('bombsf:', bombsf)
+    print('bombsf:', bombsf)
+
+    #--------------------------------------------------------------------------#
+    # Find if this is a good location for dropping a bomb 
+    # Also returns the direction of scape
 
     # connect graph collecting only currently free fields
     graph = make_empty_field_graph(game_state)
@@ -257,17 +232,39 @@ def state_to_features(game_state: dict) -> np.array:
     free_tiles = [free_tiles[i] for i in idx]
 
     # calculate if they are accessible and if yes, the shortest path
-    free_tile_dist = [BFS_SP(graph, location, tile) for tile in free_tiles]
-    idx = np.where(np.array(free_tile_dist) != None)[0]
-    free_tile_dist = [free_tile_dist[i] for i in idx]
+    # Returns a list of tupples, each tupple has:
+    # distance to target, second node in path
+    free_tile_dist_and_escape = [BFS_SP(graph, location, tile) for tile in free_tiles]
+    #idx = np.where(np.array(free_tile_dist_and_escape) != None)[0]
+    idx = np.where([elem != None for elem in free_tile_dist_and_escape])[0]
+    free_tile_dist_and_escape = [free_tile_dist_and_escape[i] for i in idx]
+    #print('free_tile_dist_and_escape', free_tile_dist_and_escape)
+    free_tile_dist = [freetile[0] for freetile in free_tile_dist_and_escape]
+    free_tile_escape = [freetile[1] for freetile in free_tile_dist_and_escape]
+    #print('free_tile_dist', free_tile_dist)
 
-    if np.any(np.array(free_tile_dist) >= 4):
+    free_tiles = [free_tiles[i] for i in idx]
+
+    long_escapes = np.where(np.array(free_tile_dist) >= 40)[0]
+    short_scapes = np.where(np.sum(np.array(free_tiles) == np.array(location), axis=1) == 0)[0]
+    free_tiles = [free_tiles[i] for i in short_scapes]
+
+    escape_tile1 = [free_tile_escape[i][1] for i in long_escapes]
+    escape_tile2 =[tile_path[1] for free_tile in free_tiles for tile_path in free_tile_escape if free_tile in tile_path]
+
+    #print('escape_tile1', escape_tile1)
+    #print('escape_tile2', escape_tile2)
+
+    # Safe path is a path tha you can reach before bomb explodes
+    # len of path should be less or equal than ticker
+    # If the end point of the path is the explotion range, then it is not a good path
+
+    if len(long_escapes) > 0:
         #print('This is a good spot 4 tiles')
         good_spot = 1
     else:
-        free_tiles = np.array([free_tiles[i] for i in idx])
-        loc = np.array(location)
-        if np.any(np.sum(free_tiles == loc, axis=1) == 0):
+        
+        if len(short_scapes)>0:
             #print('This is a good spot for escape route')
             good_spot = 1
         else:
@@ -283,6 +280,59 @@ def state_to_features(game_state: dict) -> np.array:
     # print('Feature bombsf n: ', bombsf.shape)
     features = np.hstack((sur_val, coinf, cratef, bombsf, np.array(good_spot)))
     return features.reshape(1, -1)
+
+def explosion_zone(field, bomb_reldis, bombs_location, location):
+    """
+    Given a list of bomb locations and one query position, this function tells you if the
+    query position is in the blasting area of any bomb
+    DANGER  ZONE!
+
+    Args:
+        fiel: The current fielf of the game
+        bombs_location: the coordinate from which to begin the search.
+        targets: list or array holding the coordinates of all target tiles.
+        logger: optional logger object for debugging.
+    Returns:
+        coordinate of first step towards closest target or towards tile closest to any target.
+    """
+    # calculate relative distance to each bomb
+    bombs_location = np.array(bombs_location)
+    #bombs_ticker = np.array([bomb[1] for bomb in bombs])
+    #bomb_dist = np.array([BFS_SP(graph, location, coin) for coin in coins])
+    bomb_reldis = bombs_location - np.array(location)[None,]
+    # shortest distance in x or y axis
+    bomb_mindist = np.amin(np.abs(bomb_reldis), axis=1)
+    #idx_bombs = np.argsort(bomb_mindist)[0:len(bombs)]
+
+    # Find if the bomb can harm the player
+    bomb_harm = []
+    loc = np.array(location)
+    for i in range(len(bombs_location)):
+        # Location of bomb and player
+        bombl = bombs_location[i]
+        
+        if bomb_mindist[i] > 4 or not any(bombl == loc):
+            # 'NO HARM'
+            bomb_harm.append(0)
+        else:
+            # select index of the axis in which bomb can harm you
+            idx = np.argmax(bombl == loc) # 0 x axis, 1 y axis
+            if idx == 0:
+                f = min((bombl[1], loc[1]))
+                t = max((bombl[1], loc[1]))
+                bomb_range = field[loc[0], f:t]
+            else:
+                f = min((bombl[0], loc[0]))
+                t = max((bombl[0], loc[0]))
+                bomb_range = field[f:t, loc[1]]
+            # check if there are walls
+            if len(bomb_range) > 4 or sum(bomb_range == -1) > 0:
+                # 'NO HARM'
+                bomb_harm.append(0)
+            else:
+                # 'HARM'
+                bomb_harm.append(1)
+    return bomb_harm
 
 def look_for_targets_dist(free_space, start, targets, logger=None):
     """Find direction of closest target that can be reached via free tiles.
@@ -455,7 +505,7 @@ def BFS_SP(graph, start, goal):
     explored = [] 
     queue = [[start]] 
     if start == goal: 
-        return 0
+        return (0, start)
     while queue: 
         path = queue.pop(0) 
         node = path[-1] 
@@ -466,5 +516,7 @@ def BFS_SP(graph, start, goal):
                 new_path.append(neighbour) 
                 queue.append(new_path) 
                 if neighbour == goal: 
-                    return len(new_path)-1
+                    return (len(new_path)-1, new_path)
             explored.append(node)
+    #return (None, None)
+    
