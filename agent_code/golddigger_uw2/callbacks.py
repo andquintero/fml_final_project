@@ -116,7 +116,8 @@ def state_to_features(game_state: dict) -> np.array:
         bombs_location = [bomb[0] for bomb in bombs]
         bombs_ticker = np.array([bomb[1] for bomb in bombs])
         # An old bomb blocks the tile
-        bombs_location_not_self = [b for b in bombs_location if location not in b]
+        
+        bombs_location_not_self = [bombs_location[i] for i in np.where(location not in bombs_location)[0]]
         for i,j in bombs_location_not_self:
             field_[i,j]=-1
 
@@ -134,71 +135,21 @@ def state_to_features(game_state: dict) -> np.array:
 
     if len(idx) > 0:
         sur_val[idx] = -1
-
-
-    #--------------------------------------------------------------------------#
-    #                           Bomb related features                          #
-    #--------------------------------------------------------------------------#
-    #trackNbombs = len(game_state['others']) + 1
-    trackNbombs =  1
-    # if it can place a bomb
-    # if the bomb will harm you
-    # ticker
-    # relative distance to bomb
-
-    if len(bombs)>0:
-        # calculate relative distance to each bomb
-        bombs_location = [bomb[0] for bomb in bombs]
-        bombs_ticker = np.array([bomb[1] for bomb in bombs])
-        #Relative distance to bomb in X and Y axis
-        bomb_reldis = np.array(bombs_location) - np.array(location)[None,]
-        
-        # Find if the bomb can harm the player
-        bomb_harm = explosion_zone(field, bomb_reldis, bombs_location, location)
-
-        bombsf = np.hstack((np.array(bomb_harm)[:, None], bombs_ticker[:, None], bomb_reldis)).flatten()     
-
-        # An old bomb blocks the tile
-        bombs_location_not_self = [b for b in bombs_location if location not in b]
-        for i,j in bombs_location_not_self:
-            field_[i,j]=-1
-
-    else:
-        bombsf = []
-
-    to_fill = trackNbombs*4 - len(bombsf)
-    if to_fill > 0:
-        #print('bombsf to_fill:', to_fill)
-        #print('bombsf nofill:', bombsf)
-        # we have to choose if nan or a high number
-        bombsf = np.hstack((bombsf, np.repeat(np.nan, to_fill)))
-
-    bombav = np.array(game_state['self'][2]*1) # if the BOMB action is available
-    #bombav = np.repeat(game_state['self'][2]*1, trackNbombs)
-    #print('bombav', bombav)
-    bombsf = np.hstack((bombav, bombsf))
-    #print('bombsf:', bombsf)
-
     
     #--------------------------------------------------------------------------#
     #                              Field graphs                                #
     #--------------------------------------------------------------------------#
     # Create graph with paths to all crates
   
-    graph_crates   = make_field_graph(np.invert(field_ >= 0)*1)
-    graph_walkable = make_field_graph(field_)
-
-    print('graph_crates: ', graph_crates == graph_walkable)
+    graph_empty_field = make_field_graph(np.invert(field_ >= 0)*1)
+    graph_walkable    = make_field_graph(field_)
     #print('graph_walkable: ', graph_walkable)
-
-    #bombs_not_self
-
-
-
-    print('graph: ', graph_walkable)
+    #--------------------------------------------------------------------------#
+    
+    #--------------------------------------------------------------------------#
+    #                        Coin related features                             #
     #--------------------------------------------------------------------------#
     # Distance to all coins
-
     if len(coins)>0:
         # calculate distance to each coin
         coin_dist = np.array([BFS_SP(graph_walkable, location, coin, return_path=False) for coin in coins])
@@ -213,38 +164,16 @@ def state_to_features(game_state: dict) -> np.array:
     coinf = np.hstack((coinf, np.repeat(np.nan, to_fill)))
 
     #--------------------------------------------------------------------------#
-    # Crate features
+    #                        Crate related features                            #
+    #--------------------------------------------------------------------------#
     # Distance to 3 closest crates and number of crates that can be blown away at current position
     xcrate, ycrate = np.where(field==1)
     crates = [(xcrate[i], ycrate[i]) for i in range(len(xcrate))]
 
-
-    if len(crates) > 0:
-        # crate_reldis = np.array(crates) - np.array(location)[None,]
-        # idx = np.argsort(np.sum(np.abs(crate_reldis), axis=1))[0:trackNcrates]
-        # #print('crate idx', idx, type(idx), idx.tolist())
-        # crate_reldis = crate_reldis[idx]
-        # crates2 = [crates[i] for i in idx]
-        # crate_dist = np.array([BFS_SP(graph, location, crate, return_path=False) for crate in crates2])
-        # #crate_dist = np.array([calculate_weighted_distance(graph, location, crate) for crate in crates2])
-
-        # idx = np.argsort(crate_dist)[0:trackNcrates]
-        # cratef = np.hstack((crate_dist[idx, None], crate_reldis[idx, :])).flatten()
-        
-        # Create graph with paths to all crates
-        field_available_crates = field.copy()
-        for i,j in crates:
-            field_available_crates[i,j] = 0    
-        graph = make_field_graph(field_available_crates)
-
+    if len(crates) > 0:      
+        # Look for closest crate
         crate_reldis = np.array(crates) - np.array(location)[None,]
-        #idx = np.argsort(np.sum(np.abs(crate_reldis), axis=1))[0:trackNcrates]
-        #print('crate idx', idx, type(idx), idx.tolist())
-        #crate_reldis = crate_reldis[idx]
-        #crates2 = [crates[i] for i in idx]
-        crate_dist = np.array([BFS_SP(graph, location, crate, return_path=False) for crate in crates])
-        #print('crate_dist ', crate_dist)
-        #crate_dist = np.array([calculate_weighted_distance(graph, location, crate) for crate in crates2])
+        crate_dist = np.array([BFS_SP(graph_empty_field, location, crate, return_path=False) for crate in crates])
 
         idx = np.argsort(crate_dist)[0:trackNcrates]
         cratef = np.hstack((crate_dist[idx, None], crate_reldis[idx, :])).flatten()
@@ -272,31 +201,19 @@ def state_to_features(game_state: dict) -> np.array:
     #--------------------------------------------------------------------------#
     #                           Bomb related features                          #
     #--------------------------------------------------------------------------#
-    #print('game_state', game_state)
-    #bombs = game_state['bombs']
     #trackNbombs = len(game_state['others']) + 1
-    #print('game_state[others]', game_state['others'], len(game_state['others']))
     trackNbombs =  1
-    
-
     # if it can place a bomb
     # if the bomb will harm you
     # ticker
     # relative distance to bomb
-
-    #xx
     if len(bombs)>0:
-        # calculate relative distance to each bomb
-        bombs_location = [bomb[0] for bomb in bombs]
-        bombs_ticker = np.array([bomb[1] for bomb in bombs])
         #Relative distance to bomb in X and Y axis
         bomb_reldis = np.array(bombs_location) - np.array(location)[None,]
-        
         # Find if the bomb can harm the player
         bomb_harm = explosion_zone(field, bomb_reldis, bombs_location, location)
-
+        # Features
         bombsf = np.hstack((np.array(bomb_harm)[:, None], bombs_ticker[:, None], bomb_reldis)).flatten()        
-
     else:
         bombsf = []
 
@@ -308,20 +225,17 @@ def state_to_features(game_state: dict) -> np.array:
         bombsf = np.hstack((bombsf, np.repeat(np.nan, to_fill)))
 
     bombav = np.array(game_state['self'][2]*1) # if the BOMB action is available
-    #bombav = np.repeat(game_state['self'][2]*1, trackNbombs)
-    #print('bombav', bombav)
     bombsf = np.hstack((bombav, bombsf))
     #print('bombsf:', bombsf)
 
     #--------------------------------------------------------------------------#
+    #                         Bomb placement features                          #
+    #--------------------------------------------------------------------------#
     # Find if this is a good location for dropping a bomb 
     # Also returns the direction of scape
 
-    # connect graph collecting only currently free fields
-    graph = make_empty_field_graph(game_state)
-
     # filter out free fields in agent radius of 4
-    free_tiles = list(graph.keys())
+    free_tiles = list(graph_walkable.keys())
     tile_dis = np.abs(np.array(free_tiles) - np.array(location)[None,])
     idx = np.where(np.sum(tile_dis <= 4, axis=1) == 2)[0]
     free_tiles = [free_tiles[i] for i in idx]
@@ -329,7 +243,7 @@ def state_to_features(game_state: dict) -> np.array:
     # calculate if they are accessible and if yes, the shortest path
     # Returns a list of tupples, each tupple has:
     # distance to target, second node in path
-    free_tile_dist_and_escape = [BFS_SP(graph, location, tile) for tile in free_tiles]
+    free_tile_dist_and_escape = [BFS_SP(graph_walkable, location, tile) for tile in free_tiles]
     #idx = np.where(np.array(free_tile_dist_and_escape) != None)[0]
     idx = np.where([elem != None for elem in free_tile_dist_and_escape])[0]
     free_tile_dist_and_escape = [free_tile_dist_and_escape[i] for i in idx]
@@ -348,7 +262,9 @@ def state_to_features(game_state: dict) -> np.array:
     #print('free_tile_escape', free_tile_escape)
 
     #--------------------------------------------------------------------------#
-    # Safe path is a path tha you can reach before bomb explodes
+    #                           Bomb escape features                           #
+    #--------------------------------------------------------------------------#
+    # Safe path is a path that you can reach before bomb explodes
     # len of path should be less or equal than ticker
     # If the end point of the path is the explotion range, then it is not a good path
 
@@ -393,7 +309,8 @@ def state_to_features(game_state: dict) -> np.array:
         good_step = np.hstack((np.abs(sur_val)*-1, 0))
         #good_step = np.repeat(np.nan, 5)
 
-
+    #--------------------------------------------------------------------------#
+    #                         Return state to features                         #
     #--------------------------------------------------------------------------#
     # print('Feature sur_val n: ', sur_val.shape)
     # print('Feature coinf n: ', coinf.shape)

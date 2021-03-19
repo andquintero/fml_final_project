@@ -156,7 +156,7 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     #     print('Features:', new_features)
     #     print('Bombs action available: ',  new_features[0,23]==1)
     #     print('Good spot for bomb: ',  new_features[0,28]==1)
-    #     print('Escape routes: ',  new_features[0,29:34])
+    #     print('Escape routes: ',  new_features[0,[0,1,2,3,29]])
 
     if new_game_state['step'] > 1:
         _, _, _, location = old_game_state['self']
@@ -168,7 +168,7 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         # print('Features:', old_features)
         # print('Bombs action available: ',  old_features[0,23]==1)
         # print('Good spot for bomb: ',  old_features[0,28]==1)
-        # print('Escape routes: ',  old_features[0,29:34])
+        # print('Escape routes: ',  old_features[0,[0,1,2,3,29]])
         
         #print('self_action', self_action)
         #print('events: ', events)
@@ -186,7 +186,7 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
 
         # Idea: Add your own events to hand out rewards
         # Penalize moving back and forth
-        reward_moving_back(self, events, new_game_state)
+        #reward_moving_back(self, events, new_game_state)
         # If the agent is trapped penalize
         reward_its_a_trap(self, events, new_game_state)
         # Rewards according to coin position
@@ -223,7 +223,7 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     
     # Idea: Add your own events to hand out rewards
     # Penalize moving back and forth
-    reward_moving_back(self, events, last_game_state)
+    #reward_moving_back(self, events, last_game_state)
     # If the agent is trapped penalize
     reward_its_a_trap(self, events, last_game_state)
     # Rewards according to coin position
@@ -318,7 +318,7 @@ def reward_from_events(self, events: List[str]) -> int:
         #e.MOVED_TOWARDS_COIN1   : 20,
         #e.MOVED_AWAY_FROM_COIN1 : -40,
 
-        e.BOMB_DROPPED  : 25,
+        e.BOMB_DROPPED  : -25,
         ITS_A_TRAP      : -1000,
         #BOMB_EXPLODED : 
 
@@ -344,13 +344,14 @@ def reward_from_events(self, events: List[str]) -> int:
     coin_vals = np.hstack((np.linspace(60,20,trackNcoins), np.linspace(-120,-40,trackNcoins)))
     game_rewards.update(dict(zip(coin_keys, coin_vals)))
     
-    crate_keys = MOVED_TOWARDS_CRATE[:trackNcrates] + MOVED_AWAY_FROM_CRATE[:trackNcrates]
-    crate_vals = np.hstack((np.linspace(20,5,trackNcrates), np.linspace(-20,-5,trackNcrates)))
-    game_rewards.update(dict(zip(crate_keys, crate_vals)))
+    # crate_keys = c[:trackNcrates] + MOVED_AWAY_FROM_CRATE[:trackNcrates]
+    # crate_vals = np.hstack((np.linspace(20,5,trackNcrates), np.linspace(-20,-5,trackNcrates)))
+    # game_rewards.update(dict(zip(crate_keys, crate_vals)))
 
 
     bomb_drop_weight = get_bomb_drop_weight(self)
-    game_rewards[e.BOMB_DROPPED] = game_rewards[e.BOMB_DROPPED] * bomb_drop_weight
+    #game_rewards[e.BOMB_DROPPED] = game_rewards[e.BOMB_DROPPED] * bomb_drop_weight
+    game_rewards[e.BOMB_DROPPED] = 25 * bomb_drop_weight
 
     reward_sum = 0
     for event in events:
@@ -414,13 +415,15 @@ def reward_moving_back(self, events, new_game_state):
         #if np.unique(self.trainingXold[-3:-1], axis=0).shape[0] == 1:
 
 def reward_its_a_trap(self, events, new_game_state):
-    if sum(self.trainingXnew[-1, 0:4] == 0) == 0:
-        events.append(ITS_A_TRAP)
+    #if sum(self.trainingXnew[-1, 0:4] == 0) == 0:
+    #    events.append(ITS_A_TRAP)
 
+    # Check if Bomb action was done (23), and it was a bad spot (28)
     if self.trainingXold[-1, 28] == 0 and self.trainingXold[-1, 23] == 1 and self.trainingXnew[-1,23] == 0:
         events.append(ITS_A_TRAP)
     
     # Check if the seleced path was a dead end
+    #print('Its a trap ', self.trainingXnew[-1, [0,1,2,3,29]])
     if all(self.trainingXnew[-1, [0,1,2,3,29]] == -1)  :
         events.append(ITS_A_TRAP)
     
@@ -433,7 +436,7 @@ def reward_moving_to_coin(self, events, new_game_state):
     if remaining_coins < tracking:
         tracking = remaining_coins
 
-    if 'COIN_COLLECTED' not in events:
+    if 'COIN_COLLECTED' not in events and 'COIN_FOUND' not in events:
         for i in range(tracking):
             if self.trainingXnew[-1, coin_coords[i]] < self.trainingXold[-1, coin_coords[i]]:
                 events.append(MOVED_TOWARDS_COIN[i])
