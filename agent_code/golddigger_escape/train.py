@@ -99,7 +99,7 @@ def setup_training(self):
     # Start GradientBoostingRegressor for every action
     reg = [LGBMRegressor(use_missing=False, zero_as_missing=False) for i in range(len(ACTIONS))]
     self.model = MultiRegression(reg)
-    self.nFeatures = 4 + (3 * trackNcoins) + (3 * trackNcrates) + 7
+    self.nFeatures = 4 + (3 * trackNcoins) + (3 * trackNcrates) + 7 + 5
     if self.reset is True:
 
         self.random_prob = 1
@@ -304,12 +304,12 @@ def reward_from_events(self, events: List[str]) -> int:
         #e.MOVED_TOWARDS_COIN1   : 20,
         #e.MOVED_AWAY_FROM_COIN1 : -40,
 
-        e.BOMB_DROPPED  : -10,
+        e.BOMB_DROPPED  : -5,
         ITS_A_TRAP      : -500,
         #BOMB_EXPLODED : 
 
-        e.CRATE_DESTROYED : 50,
-        e.COIN_FOUND      : 50,
+        #e.CRATE_DESTROYED : 50,
+        #e.COIN_FOUND      : 50,
         e.COIN_COLLECTED  : 400,
 
         #KILLED_OPPONENT = 'KILLED_OPPONENT'
@@ -330,10 +330,13 @@ def reward_from_events(self, events: List[str]) -> int:
     coin_vals = np.hstack((np.linspace(60,20,trackNcoins), np.linspace(-120,-40,trackNcoins)))
     
     crate_keys = MOVED_TOWARDS_CRATE[:trackNcrates] + MOVED_AWAY_FROM_CRATE[:trackNcrates]
-    crate_vals = np.hstack((np.linspace(30,10,trackNcrates), np.linspace(-60,-20,trackNcrates)))
+    crate_vals = np.hstack((np.linspace(20,5,trackNcrates), np.linspace(-20,-5,trackNcrates)))
 
     game_rewards.update(dict(zip(coin_keys, coin_vals)))
     game_rewards.update(dict(zip(crate_keys, crate_vals)))
+
+    bomb_drop_weight = get_bomb_drop_weight(self)
+    game_rewards[e.BOMB_DROPPED] = game_rewards[e.BOMB_DROPPED] * bomb_drop_weight
 
     reward_sum = 0
     for event in events:
@@ -341,6 +344,12 @@ def reward_from_events(self, events: List[str]) -> int:
             reward_sum += game_rewards[event]
     self.logger.info(f"Awarded {reward_sum} for events {', '.join(events)}")
     return reward_sum
+
+def get_bomb_drop_weight(self):
+    crate_num = 0
+    if self.trainingXold[-1, 23] == 1 and self.trainingXnew[-1,23] == 0:
+        crate_num = self.trainingXold[-1, 22]
+    return crate_num
 
 
 def update_Q_values(self):
@@ -396,6 +405,11 @@ def reward_its_a_trap(self, events, new_game_state):
 
     if self.trainingXold[-1, 28] == 0 and self.trainingXold[-1, 23] == 1 and self.trainingXnew[-1,23] == 0:
         events.append(ITS_A_TRAP)
+    
+    # Check if the seleced path was a dead end
+    if sum(self.trainingXnew[-1, 29:-1] == 0) == 0 :
+        events.append(ITS_A_TRAP)
+    
 
 def reward_moving_to_coin(self, events, new_game_state):
 

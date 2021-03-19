@@ -265,7 +265,29 @@ def state_to_features(game_state: dict) -> np.array:
         good_next_tiles = list(set(good_next_tiles)) # the the unique good tiles
 
 
-        print('good_next_tiles:', good_next_tiles)
+        #print('good_next_tiles:', good_next_tiles)
+        # List of tupples with relative coordinates of next good step
+        if len(good_next_tiles) > 0:
+            good_step = list(map(tuple, np.array(good_next_tiles) - np.array(location)[None,]))
+            good_step = np.array([0 if n in good_step else -1 for n in [(0,-1), (1,0), (0,1), (-1,0), (0,0)]])
+        else:
+            good_step = np.repeat(-1, 5)
+        #print('good_next_ step features to pos:',  good_step)
+    else:
+        good_step = np.hstack((sur_val, 0))
+        # agent movements (top - right - down - left)
+        # area = [(0,-1), (1,0), (0,1), (-1,0)]
+        # # get info for the surroundings of the agent (N-E-S-W)
+        # sur = [tuple(map(sum, zip(location, n))) for n in area]
+
+        # bombs_location = [bomb[0] for bomb in bombs]
+        # idx = np.where([s in bombs_location for s in sur])[0]
+
+        # sur_val = np.array([field[c[0], c[1]] for c in sur])
+
+        # if len(idx) > 0:
+        #     sur_val[idx] = -1
+
 
 
     # bomb_harm = explosion_zone(field, bomb_reldis, bombs_location, location)
@@ -289,7 +311,7 @@ def state_to_features(game_state: dict) -> np.array:
     # print('Feature coinf n: ', coinf.shape)
     # print('Feature cratef n: ', cratef.shape)
     # print('Feature bombsf n: ', bombsf.shape)
-    features = np.hstack((sur_val, coinf, cratef, bombsf, np.array(good_spot)))
+    features = np.hstack((sur_val, coinf, cratef, bombsf, np.array(good_spot), good_step))
     #print('features: ', features)
     return features.reshape(1, -1)
 
@@ -472,10 +494,10 @@ def make_field_graph(field):
     nodes = [(x0[i], y0[i]) for i in range(len(x0))]
     targets = []
 
-    # this time we are creating a graph with weighted edges (1 if next field is a free tile, 0 if)
+    # this time we are creating a graph with weighted edges (1 if next field is a free tile, 10 if it is a crate)
     for coord in nodes:
         pb = [tuple(map(sum, zip(coord, n))) for n in area]
-        targets.append({x: 1 if field[x[0], x[1]] == 0 else 3 for x in pb if x in nodes})
+        targets.append({x: 1 if field[x[0], x[1]] == 0 else 10 for x in pb if x in nodes})
     
     return dict(zip(nodes, targets))   
 
