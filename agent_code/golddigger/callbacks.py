@@ -409,10 +409,10 @@ def make_field_graph(field):
     nodes = [(x0[i], y0[i]) for i in range(len(x0))]
     targets = []
 
-    # this time we are creating a graph with weighted edges (1 if next field is a free tile, 0 if)
+    # this time we are creating a graph with weighted edges (1 if next field is a free tile, 10 if it is a crate)
     for coord in nodes:
         pb = [tuple(map(sum, zip(coord, n))) for n in area]
-        targets.append({x: 1 if field[x[0], x[1]] == 0 else 3 for x in pb if x in nodes})
+        targets.append({x: 1 if field[x[0], x[1]] == 0 else 10 for x in pb if x in nodes})
     
     return dict(zip(nodes, targets))   
 
