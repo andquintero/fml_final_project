@@ -301,7 +301,7 @@ def reward_from_events(self, events: List[str]) -> int:
         #e.MOVED_TOWARDS_COIN1   : 20,
         #e.MOVED_AWAY_FROM_COIN1 : -40,
 
-        e.BOMB_DROPPED  : -10,
+        e.BOMB_DROPPED  : 10,
         ITS_A_TRAP      : -500,
         #BOMB_EXPLODED : 
 
