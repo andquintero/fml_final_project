@@ -58,7 +58,7 @@ MOVED_AWAY_FROM_CRATE1 = 'MOVED_AWAY_FROM_CRATE1'
 BOMB_WITH_NO_TARGET    = 'BOMB_WITH_NO_TARGET'
 MOVED_AWAY_FROM_DANGER = 'MOVED_AWAY_FROM_DANGER'
 
-print_events = False
+print_events = True
 #------------------------------------------------------------------------------#
 #                         Class to run multiple regressor                      #
 #------------------------------------------------------------------------------#
