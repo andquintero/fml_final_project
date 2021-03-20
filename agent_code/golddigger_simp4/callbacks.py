@@ -108,12 +108,13 @@ def state_to_features(game_state: dict) -> np.array:
     coins = game_state['coins']
     name, score, bomb, location = game_state['self']
     bombs = game_state['bombs']
+    bombs_location = [bomb[0] for bomb in bombs]
 
     # Copy of field to change
     field_ = field.copy()
     # Find if bombs are blocking tiles
     if len(bombs)>0:
-        bombs_location = [bomb[0] for bomb in bombs]
+        #bombs_location = [bomb[0] for bomb in bombs]
         bombs_ticker = np.array([bomb[1] for bomb in bombs])
         # An old bomb blocks the tile
         
@@ -127,10 +128,7 @@ def state_to_features(game_state: dict) -> np.array:
     area = [(0,-1), (1,0), (0,1), (-1,0)]
     # get info for the surroundings of the agent (N-E-S-W)
     sur = [tuple(map(sum, zip(location, n))) for n in area]
-
-    bombs_location = [bomb[0] for bomb in bombs]
     idx = np.where([s in bombs_location for s in sur])[0]
-
     sur_val = np.array([field[c[0], c[1]] for c in sur])
 
     if len(idx) > 0:
@@ -306,7 +304,7 @@ def state_to_features(game_state: dict) -> np.array:
     # Safe path is a path that you can reach before bomb explodes
     # len of path should be less or equal than ticker
     # If the end point of the path is the explotion range, then it is not a good path
-
+    movement_action = [(0,-1), (1,0), (0,1), (-1,0), (0,0)]
     # Find which routes to a free tile are a trap!
     if len(bombs)>0:
         # Filter out paths that are not reachable before bomb goes off
@@ -340,13 +338,29 @@ def state_to_features(game_state: dict) -> np.array:
         # List of tupples with relative coordinates of next good step
         if len(good_next_tiles) > 0:
             good_step = list(map(tuple, np.array(good_next_tiles) - np.array(location)[None,]))
-            good_step = np.array([0 if n in good_step else -1 for n in [(0,-1), (1,0), (0,1), (-1,0), (0,0)]])
+            good_step = np.array([0 if n in good_step else -1 for n in movement_action])
         else:
             good_step = np.repeat(-1, 5)
         #print('good_next_ step features to pos:',  good_step)
     else:
         good_step = np.hstack((np.abs(sur_val)*-1, 0))
         #good_step = np.repeat(np.nan, 5)
+    # sum available spaces at this positions use sur
+
+    
+    # agent movements (top - right - down - left - wait)
+    #movement_action = [(0,-1), (1,0), (0,1), (-1,0)]
+    # get info for the surroundings of the agent 
+    field_[location[0], location[1]] = -1 # cannot move back
+    for i in range(len(good_step)-1):
+        if good_step[i] == 0:
+            future_loc = tuple(map(sum, zip(location, movement_action[i])))
+
+            sur = [tuple(map(sum, zip(future_loc, n))) for n in area]
+            sur_val = np.array([field_[c[0], c[1]] for c in sur])
+            # 1 if no dead end, 0 if dead end
+            good_step[i] = (np.sum(np.abs(sur_val) == 0) > 0)*1 
+
 
     #--------------------------------------------------------------------------#
     #                         Return state to features                         #
@@ -357,7 +371,7 @@ def state_to_features(game_state: dict) -> np.array:
     # print('Feature bombsf n: ', bombsf.shape)
     #features = np.hstack((sur_val, coinf, cratef, bombsf, np.array(good_spot), good_step))
     features = np.hstack((good_step[0:4], coinf, cratef, bombsf, np.array(good_spot), good_step[4]))
-    print('features: ', features)
+    #print('features: ', features)
     return features.reshape(1, -1)
 
 def explosion_zone(field, bomb_reldis, bombs_location, location):

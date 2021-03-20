@@ -51,6 +51,8 @@ RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
 # Events
 PLACEHOLDER_EVENT = "PLACEHOLDER"
 ITS_A_TRAP             = 'ITS_A_TRAP'
+MOVED_INTO_DEAD_END    = 'MOVED_INTO_DEAD_END'
+MOVED_TO_FREE_WAY      = 'MOVED_TO_FREE_WAY'
 MOVED_TOWARDS_COIN1    = 'MOVED_TOWARDS_COIN1'
 MOVED_AWAY_FROM_COIN1  = 'MOVED_AWAY_FROM_COIN1'
 MOVED_TOWARDS_CRATE1   = 'MOVED_TOWARDS_CRATE1'
@@ -347,10 +349,13 @@ def reward_from_events(self, events: List[str]) -> int:
         HOLD_BOMB_NO_TARGET    : 5,
         ITS_A_TRAP             : -1000,
         MOVED_AWAY_FROM_DANGER : 500,
+        MOVED_INTO_DEAD_END    : -100,
+        MOVED_TO_FREE_WAY      : 50,
+        
         #BOMB_EXPLODED : 
 
         #e.CRATE_DESTROYED : 50,
-        e.COIN_FOUND      : 50,
+        #e.COIN_FOUND      : 50,
         e.COIN_COLLECTED  : 400,
 
 
@@ -434,6 +439,10 @@ def reward_its_a_trap(self, action, events, new_game_state):
     # i_bomb_badpos = 16
     # i_wait        = 17
     
+    #--------------------------------------------------------------------------#
+    #                     Penalize if moving into a trap                       #
+    #--------------------------------------------------------------------------#
+
     # Check if Bomb action was done (i_bomb_avail), and it was a bad spot (i_bomb_badpos)
     # This check is reduncdant with the -500 penalization by dropping a bomb 
     # in a bad spot in function get_bomb_drop_weight
@@ -450,7 +459,7 @@ def reward_its_a_trap(self, action, events, new_game_state):
     #print("Bomb can harm new: ", self.trainingXnew[-1, i_bomb_harms]==1,  self.trainingXnew[-1, i_bomb_harms])
 
     # Check if the last movement was a good movement (did not move into a harmful position)
-    idx = np.where(self.trainingXold[-1, [0,1,2,3,i_wait,i_bomb_avail]] == [0,0,0,0,0,1])[0]
+    idx = np.where(self.trainingXold[-1, [0,1,2,3,i_wait,i_bomb_avail]] >= [0,0,0,0,0,1])[0]
     #print('action in ACTIONS', action in [ACTIONS[i] for i in idx])
     if action not in [ACTIONS[i] for i in idx] and self.trainingXnew[-1, i_bomb_harms] == 1:
         events.append(ITS_A_TRAP)
@@ -461,14 +470,16 @@ def reward_its_a_trap(self, action, events, new_game_state):
         #print("movement tiles old: ", self.trainingXold[-1, [0,1,2,3,i_wait]])
         #print("movement tiles new: ", self.trainingXnew[-1, [0,1,2,3,i_wait]])
     
-
+    #--------------------------------------------------------------------------#
+    #                  Reward if moving out or darger zone                     #
+    #--------------------------------------------------------------------------#
 
     if 'INVALID_ACTION' not in events and 'ITS_A_TRAP' not in events:
         if self.trainingXold[-1, i_bomb_harms] == 1 and self.trainingXnew[-1, i_bomb_harms] == 0:
             # Check if moving away from danger, bomb is harmfull (12) ==1
             #print("MOVED_AWAY_FROM_DANGER: moved from danger to safety")
             events.append(MOVED_AWAY_FROM_DANGER)
-        elif any(self.trainingXnew[-1, [0,1,2,3]] == 0) and self.trainingXnew[-1, i_bomb_harms] == 1 and 'BOMB_DROPPED' not in events and action != 'WAIT':
+        elif any(self.trainingXnew[-1, [0,1,2,3]] >= 0) and self.trainingXnew[-1, i_bomb_harms] == 1 and 'BOMB_DROPPED' not in events and action != 'WAIT':
             # Check if in danger zone and there's scape route
             #print("MOVED_AWAY_FROM_DANGER: in danger zone but still a way to scape")
             events.append(MOVED_AWAY_FROM_DANGER)
@@ -480,7 +491,22 @@ def reward_its_a_trap(self, action, events, new_game_state):
         #     # Check if bomb was dropped and there's scape route
         #     #print("placed a bomb but there is a escape route")
         #     events.append(MOVED_AWAY_FROM_DANGER)
-    
+
+    #--------------------------------------------------------------------------#
+    #         Penalize or reward if moving into a dead end free way            #
+    #--------------------------------------------------------------------------#
+    #old_moves = self.trainingXold[-1, [0,1,2,3,i_wait]]
+    old_moves = self.trainingXold[-1, [0,1,2,3]]
+
+    if 'INVALID_ACTION' not in events and 'ITS_A_TRAP' not in events and action != 'BOMB' and action != 'WAIT':
+        if np.any(old_moves == 1) and old_moves[ACTIONS.index(action)] == 0:
+            # if the selected action was dead end == 0, if it was a better way == 1 was available
+            events.append(MOVED_INTO_DEAD_END)
+        
+        elif np.any(old_moves == 0) and old_moves[ACTIONS.index(action)] == 1 :
+            # if the selected action was free way == 1, and a dead end was also avaialbe
+            events.append(MOVED_TO_FREE_WAY)        
+
 
 def reward_moving_to_coin(self, events, new_game_state):
     #print('coin features old: ', self.trainingXold[-1, 4:10])
