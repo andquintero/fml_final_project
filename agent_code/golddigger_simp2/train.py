@@ -113,7 +113,7 @@ def setup_training(self):
     # Start GradientBoostingRegressor for every action
     reg = [LGBMRegressor(use_missing=False, zero_as_missing=False) for i in range(len(ACTIONS))]
     self.model = MultiRegression(reg)
-    self.nFeatures = 4 + (3 * trackNcoins) + (3) + 7 + 1
+    self.nFeatures = 4 + (3 ) + (3) + 7 + 1
     if self.reset is True:
 
         self.random_prob = 1

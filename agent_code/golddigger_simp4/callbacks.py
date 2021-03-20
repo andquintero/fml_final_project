@@ -291,7 +291,7 @@ def state_to_features(game_state: dict) -> np.array:
 
     # long_escapes = np.where(np.array(free_tile_dist) >= 40)[0]
     # short_scapes = np.where(np.sum(np.array(free_tiles) == np.array(location), axis=1) == 0)[0]
-    long_escapes = np.array(free_tile_dist) >= 40 # This is a good spot 4 tiles
+    long_escapes = np.array(free_tile_dist) >= 4 # This is a good spot 4 tiles
     short_scapes = np.sum(np.array(free_tiles) == np.array(location), axis=1) == 0 # This is a good spot for escape route
     good_spot = 1 if any(long_escapes) or any(short_scapes) else 0  # good spot =1, bad spot = 0
     good_spot = good_spot if len(crates_to_explode) > 0 else 0 # if no target on sight is a bad spot

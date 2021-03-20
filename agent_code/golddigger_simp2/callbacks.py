@@ -334,7 +334,7 @@ def state_to_features(game_state: dict) -> np.array:
     #--------------------------------------------------------------------------#
     #                         Return state to features                         #
     #--------------------------------------------------------------------------#
-    # print('Feature sur_val n: ', sur_val.shape)
+    # print('Feature good_step n: ', good_step.shape)
     # print('Feature coinf n: ', coinf.shape)
     # print('Feature cratef n: ', cratef.shape)
     # print('Feature bombsf n: ', bombsf.shape)
