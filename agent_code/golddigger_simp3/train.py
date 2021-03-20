@@ -59,7 +59,7 @@ BOMB_WITH_NO_TARGET    = 'BOMB_WITH_NO_TARGET'
 HOLD_BOMB_NO_TARGET    = 'HOLD_BOMB_NO_TARGET'
 MOVED_AWAY_FROM_DANGER = 'MOVED_AWAY_FROM_DANGER'
 
-print_events = True
+print_events = False
 #------------------------------------------------------------------------------#
 #                         Class to run multiple regressor                      #
 #------------------------------------------------------------------------------#
@@ -344,6 +344,7 @@ def reward_from_events(self, events: List[str]) -> int:
         #e.BOMB_DROPPED         : -25,
         #BOMB_WITH_NO_TARGET    : -500,
         e.BOMB_DROPPED         : 25 * bomb_drop_weight,
+        HOLD_BOMB_NO_TARGET    : 5,
         ITS_A_TRAP             : -1000,
         MOVED_AWAY_FROM_DANGER : 500,
         #BOMB_EXPLODED : 
@@ -374,9 +375,21 @@ def get_bomb_drop_weight(self, events):
     if self.trainingXold[-1, i_bomb_avail] == 1 and self.trainingXnew[-1,i_bomb_avail] == 0:
         crate_num = self.trainingXold[-1, i_ncrates_exp]
         #print('crates to explode: ', crate_num)
+    #if 'INVALID_ACTION' in events or self.trainingXold[-1, i_bomb_badpos] == 0:
+    #    # Check if bomb dropped was ivalid or in a bad spot
+    #    crate_num = 0
     if 'INVALID_ACTION' in events:
-        crate_num = 0
+       # Check if bomb dropped was ivalid or in a bad spot
+       crate_num = 0
+
+    # Reward holding a bomb when no target on sight and bomb option is available
+    #if 'BOMB_DROPPED' not in events and self.trainingXold[-1, i_ncrates_exp] ==0:
+    if 'BOMB_DROPPED' not in events and self.trainingXold[-1, i_bomb_avail] == 1 and self.trainingXold[-1, i_ncrates_exp] == 0:
+        events.append(HOLD_BOMB_NO_TARGET)
+
     return crate_num if crate_num > 0 else -20
+
+
 
 
 
@@ -422,9 +435,11 @@ def reward_its_a_trap(self, action, events, new_game_state):
     # i_wait        = 17
     
     # Check if Bomb action was done (i_bomb_avail), and it was a bad spot (i_bomb_badpos)
+    # This check is reduncdant with the -500 penalization by dropping a bomb 
+    # in a bad spot in function get_bomb_drop_weight
     if self.trainingXold[-1, i_bomb_badpos] == 0 and action == 'BOMB':
-        events.append(ITS_A_TRAP)
-        #print("ITS_A_TRAP: Bad spot")
+       events.append(ITS_A_TRAP)
+       #print("ITS_A_TRAP: Bad spot")
     
     # Check if the seleced path was a dead end
     if all(self.trainingXnew[-1, [0,1,2,3,i_wait]] == -1):
