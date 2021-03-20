@@ -205,7 +205,9 @@ def state_to_features(game_state: dict) -> np.array:
         #Relative distance to bomb in X and Y axis
         bomb_reldis = np.array(bombs_location) - np.array(location)[None,]
         # Find if the bomb can harm the player
+        #print('bomb_harm starts here', bomb_reldis, bombs_location, location)
         bomb_harm = explosion_zone(field, bomb_reldis, bombs_location, location)
+        #print('bomb_harm ends here', bomb_harm)
         # Features
         bombsf = np.hstack((np.array(bomb_harm)[:, None], bombs_ticker[:, None], bomb_reldis)).flatten()        
     else:
@@ -216,7 +218,8 @@ def state_to_features(game_state: dict) -> np.array:
         #print('bombsf to_fill:', to_fill)
         #print('bombsf nofill:', bombsf)
         # we have to choose if nan or a high number
-        bombsf = np.hstack((bombsf, np.repeat(np.nan, to_fill)))
+        #bombsf = np.hstack((bombsf, np.repeat(np.nan, to_fill)))
+        bombsf = np.hstack((bombsf, np.repeat(0, to_fill)))
 
     bombav = np.array(game_state['self'][2]*1) # if the BOMB action is available
     bombsf = np.hstack((bombav, bombsf))
@@ -323,11 +326,11 @@ def explosion_zone(field, bomb_reldis, bombs_location, location):
 
     Args:
         field: The current fielf of the game
-        bombs_location: the coordinate from which to begin the search.
-        targets: list or array holding the coordinates of all target tiles.
-        logger: optional logger object for debugging.
+        bombs_location: the bomb coordinates
+        bomb_reldis: relative distance to bomb
+        location: current location
     Returns:
-        coordinate of first step towards closest target or towards tile closest to any target.
+        returns 0 is no Harm, or 1 it in blasting area
     """
     #print('location query: ', location)
     # calculate relative distance to each bomb
@@ -360,6 +363,7 @@ def explosion_zone(field, bomb_reldis, bombs_location, location):
                 f = min((bombl[0], loc[0]))
                 t = max((bombl[0], loc[0]))
                 bomb_range = field[f:t, loc[1]]
+            #print('bomb_range: ', bomb_range)
             # check if there are walls
             if len(bomb_range) > 4 or sum(bomb_range == -1) > 0:
                 # 'NO HARM'

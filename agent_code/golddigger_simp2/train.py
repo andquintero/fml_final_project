@@ -25,7 +25,20 @@ from .callbacks import trackNcrates
 # now you can import normally from ensemble
 #from sklearn.ensemble import HistGradientBoostingRegressor
 #------------------------------------------------------------------------------#
+#                               Feature indexes                                #
+#------------------------------------------------------------------------------#
+i_coin_dis  = 4
+i_crate_dis = 7
+i_ncrates_exp = 10
+i_bomb_avail  = 11
+i_bomb_harms  = 12
+i_bomb_ticker = 13
+i_bomb_badpos = 16
+i_wait        = 17
 
+
+
+#------------------------------------------------------------------------------#
 # This is only an example!
 Transition = namedtuple('Transition',
                         ('state', 'action', 'next_state', 'reward'))
@@ -36,13 +49,16 @@ RECORD_ENEMY_TRANSITIONS = 1.0  # record enemy transitions with probability ...
 
 # Events
 PLACEHOLDER_EVENT = "PLACEHOLDER"
-ITS_A_TRAP = 'ITS_A_TRAP'
-MOVED_TOWARDS_COIN1 = 'MOVED_TOWARDS_COIN1'
-MOVED_AWAY_FROM_COIN1 = 'MOVED_AWAY_FROM_COIN1'
-MOVED_TOWARDS_CRATE1 = 'MOVED_TOWARDS_CRATE1'
+ITS_A_TRAP             = 'ITS_A_TRAP'
+MOVED_TOWARDS_COIN1    = 'MOVED_TOWARDS_COIN1'
+MOVED_AWAY_FROM_COIN1  = 'MOVED_AWAY_FROM_COIN1'
+MOVED_TOWARDS_CRATE1   = 'MOVED_TOWARDS_CRATE1'
 MOVED_AWAY_FROM_CRATE1 = 'MOVED_AWAY_FROM_CRATE1'
 
+BOMB_WITH_NO_TARGET    = 'BOMB_WITH_NO_TARGET'
+MOVED_AWAY_FROM_DANGER = 'MOVED_AWAY_FROM_DANGER'
 
+print_events = True
 #------------------------------------------------------------------------------#
 #                         Class to run multiple regressor                      #
 #------------------------------------------------------------------------------#
@@ -172,7 +188,6 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         #print('events: ', events)
         # if self_action is None:
         #     print('events: ', events)
-        #     print('self_action', self_action)
 
         # add old and new state
         # self.trainingXold = np.vstack((self.trainingXold, state_to_features(old_game_state)))
@@ -186,16 +201,18 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         # Penalize moving back and forth
         #reward_moving_back(self, events, new_game_state)
         # If the agent is trapped penalize
-        reward_its_a_trap(self, events, new_game_state)
+        reward_its_a_trap(self, self_action, events, new_game_state)
         # Rewards according to coin position
         reward_moving_to_coin(self, events, new_game_state)
         #reward_moving_to_crate(self, events, new_game_state)
         reward = reward_from_events(self, events)
-        #print('events: ', events)
         # Index: find if state was already present in dataset
         idx_action = ACTIONS.index(self_action) if self_action is not None else 0
         # Update tables with Q valuesm rewards and action
         update_stepTables(self, idx_action, reward)
+        if print_events:
+            print('self_action', self_action, ' reward: ', reward)
+            print('events: ', events)
 
 
 
@@ -223,15 +240,16 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     # Penalize moving back and forth
     #reward_moving_back(self, events, last_game_state)
     # If the agent is trapped penalize
-    reward_its_a_trap(self, events, last_game_state)
+    reward_its_a_trap(self, last_action, events, last_game_state)
     # Rewards according to coin position
     reward_moving_to_coin(self, events, last_game_state)
     reward = reward_from_events(self, events)
     
     
     # Index: find if state was already present in dataset
-    #print('last_action', last_action)
-    #print('events: ', events)
+    if print_events:
+        print('last_action', last_action, ' reward: ', reward)
+        print('events: ', events)
 
     idx_action = ACTIONS.index(last_action)
     # Update tables with Q valuesm rewards and action
@@ -303,44 +321,44 @@ def reward_from_events(self, events: List[str]) -> int:
     Here you can modify the rewards your agent get so as to en/discourage
     certain behavior.
     """
+
+    bomb_drop_weight = get_bomb_drop_weight(self, events)
+
     game_rewards = {
-        e.MOVED_LEFT  : -1,
-        e.MOVED_RIGHT : -1,
-        e.MOVED_UP    : -1,
-        e.MOVED_DOWN  : -1,
-        e.WAITED      : -50,
+        # Movement
+        e.MOVED_LEFT     : -1,
+        e.MOVED_RIGHT    : -1,
+        e.MOVED_UP       : -1,
+        e.MOVED_DOWN     : -1,
+        e.WAITED         : -50,
         e.INVALID_ACTION : -100,
 
-        #MOVED_BACK_AND_FORTH: -300,
-
+        # Distance to targets
         MOVED_TOWARDS_COIN1   : 20,
         MOVED_AWAY_FROM_COIN1 : -40,
-
         MOVED_TOWARDS_CRATE1   : 20,
         MOVED_AWAY_FROM_CRATE1 : -10,
 
-        e.BOMB_DROPPED  : -25,
-        ITS_A_TRAP      : -1000,
+        # Bomb related
+        #e.BOMB_DROPPED         : -25,
+        #BOMB_WITH_NO_TARGET    : -500,
+        e.BOMB_DROPPED         : 25 * bomb_drop_weight,
+        ITS_A_TRAP             : -1000,
+        MOVED_AWAY_FROM_DANGER : 500,
         #BOMB_EXPLODED : 
 
         #e.CRATE_DESTROYED : 50,
         e.COIN_FOUND      : 50,
         e.COIN_COLLECTED  : 400,
 
-        #KILLED_OPPONENT = 'KILLED_OPPONENT'
+
         e.KILLED_SELF : -1000,
-
-        e.GOT_KILLED  : -2000,
+        e.GOT_KILLED  : -2000
+        #KILLED_OPPONENT = 'KILLED_OPPONENT'
         #OPPONENT_ELIMINATED = 'OPPONENT_ELIMINATED'
-        e.SURVIVED_ROUND : 100
+        #e.SURVIVED_ROUND : 100
 
-
-
-        #e.KILLED_OPPONENT: 5,
-    }
-
-    bomb_drop_weight = get_bomb_drop_weight(self)
-    game_rewards[e.BOMB_DROPPED] = 25 * bomb_drop_weight
+    }    
 
     reward_sum = 0
     for event in events:
@@ -349,12 +367,16 @@ def reward_from_events(self, events: List[str]) -> int:
     self.logger.info(f"Awarded {reward_sum} for events {', '.join(events)}")
     return reward_sum
 
-def get_bomb_drop_weight(self):
+def get_bomb_drop_weight(self, events):
     crate_num = 0
-    # Bomb action available (11) and crates that will explode (10)
-    if self.trainingXold[-1, 11] == 1 and self.trainingXnew[-1,11] == 0:
-        crate_num = self.trainingXold[-1, 10]
-    return crate_num
+    # Bomb action available (i_bomb_avail) and crates that will explode (i_ncrates_exp)
+    if self.trainingXold[-1, i_bomb_avail] == 1 and self.trainingXnew[-1,i_bomb_avail] == 0:
+        crate_num = self.trainingXold[-1, i_ncrates_exp]
+        #print('crates to explode: ', crate_num)
+    if 'INVALID_ACTION' in events:
+        crate_num = 0
+    return crate_num if crate_num > 0 else -20
+
 
 
 def update_Q_values(self):
@@ -388,16 +410,63 @@ def update_Q_values(self):
         self.trainingQ[i, idx_action] = q_update
 
 
-def reward_its_a_trap(self, events, new_game_state):
+def reward_its_a_trap(self, action, events, new_game_state):
+    # i_coin_dis  = 4
+    # i_crate_dis = 7
+    # i_ncrates_exp = 10
+    # i_bomb_avail  = 11
+    # i_bomb_harms  = 12
+    # i_bomb_ticker = 13
+    # i_bomb_badpos = 16
+    # i_wait        = 17
+
+
     
-    # Check if Bomb action was done (11), and it was a bad spot (16)
-    if self.trainingXold[-1, 16] == 0 and self.trainingXold[-1, 11] == 1 and self.trainingXnew[-1,11] == 0:
+    # Check if Bomb action was done (i_bomb_avail), and it was a bad spot (i_bomb_badpos)
+    if self.trainingXold[-1, i_bomb_badpos] == 0 and self.trainingXold[-1, 11] == 1 and action == 'BOMB':
         events.append(ITS_A_TRAP)
+        #print("ITS_A_TRAP: Bad spot")
     
     # Check if the seleced path was a dead end
     #print('Its a trap ', self.trainingXnew[-1, [0,1,2,3,23]])
-    if all(self.trainingXnew[-1, [0,1,2,3,17]] == -1)  :
+    if all(self.trainingXnew[-1, [0,1,2,3,17]] == -1):
         events.append(ITS_A_TRAP)
+        #print("ITS_A_TRAP: dead end")
+    # Moving into danger
+    #print("Bomb can harm old: ", self.trainingXold[-1, 12]==1,  self.trainingXold[-1, 12])
+    #print("Bomb can harm new: ", self.trainingXnew[-1, 12]==1,  self.trainingXnew[-1, 12])
+
+    # Check if the last movement was available
+    idx = np.where(self.trainingXold[-1, [0,1,2,3,17,11]] == [0,0,0,0,0,1])[0]
+    #print('action in ACTIONS', action in [ACTIONS[i] for i in idx])
+    if action not in [ACTIONS[i] for i in idx] and self.trainingXnew[-1, 12] == 1:
+        events.append(ITS_A_TRAP)
+        #print("ITS_A_TRAP: move in wrong dir")
+    elif self.trainingXold[-1, 12] == 0 and self.trainingXnew[-1, 12] == 1  and action != 'BOMB' :
+        events.append(ITS_A_TRAP)
+        #print("ITS_A_TRAP: moving into danger zone")
+        #print("movement tiles old: ", self.trainingXold[-1, [0,1,2,3,17]])
+        #print("movement tiles new: ", self.trainingXnew[-1, [0,1,2,3,17]])
+    
+
+
+    if 'INVALID_ACTION' not in events and 'ITS_A_TRAP' not in events:
+        if self.trainingXold[-1, 12] == 1 and self.trainingXnew[-1, 12] == 0:
+            # Check if moving away from danger, bomb is harmfull (12) ==1
+            #print("MOVED_AWAY_FROM_DANGER: moved from danger to safety")
+            events.append(MOVED_AWAY_FROM_DANGER)
+        elif any(self.trainingXnew[-1, [0,1,2,3,17]] == 0) and self.trainingXnew[-1, 12] == 1 and 'BOMB_DROPPED' not in events and action != 'WAIT':
+            # Check if in danger zone and there's scape route
+            #print("MOVED_AWAY_FROM_DANGER: in danger zone but still a way to scape")
+            events.append(MOVED_AWAY_FROM_DANGER)
+        elif self.trainingXold[-1, 17] == 0 and all(self.trainingXold[-1, [0,1,2,3]] == -1) and action == 'WAIT':
+            # Check if staying waiting is the only action
+            #print("MOVED_AWAY_FROM_DANGER: Waiting is the best option to escape")
+            events.append(MOVED_AWAY_FROM_DANGER)
+        # elif any(self.trainingXnew[-1, [0,1,2,3,17]] == 0) and 'BOMB_DROPPED' in events:
+        #     # Check if bomb was dropped and there's scape route
+        #     #print("placed a bomb but there is a escape route")
+        #     events.append(MOVED_AWAY_FROM_DANGER)
     
 
 def reward_moving_to_coin(self, events, new_game_state):
@@ -407,7 +476,7 @@ def reward_moving_to_coin(self, events, new_game_state):
         else:
             events.append(MOVED_AWAY_FROM_COIN1)
 
-    if 'CRATE_DESTROYED' not in events and 'ITS_A_TRAP' not in events:     
+    if 'CRATE_DESTROYED' not in events and 'ITS_A_TRAP' not in events and 'BOMB_DROPPED' not in events:     
         if self.trainingXnew[-1, 7] < self.trainingXold[-1, 7]:
             events.append(MOVED_TOWARDS_CRATE1)
         else:
@@ -423,3 +492,6 @@ def update_stepTables(self, idx_action, reward):
     # add action and reward
     self.rewards = np.vstack((self.rewards, reward))
     self.action = np.vstack((self.action, idx_action))
+
+# TO DO:
+# relative distance to bomb
