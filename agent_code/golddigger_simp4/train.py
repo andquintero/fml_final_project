@@ -36,6 +36,7 @@ i_bomb_ticker = 13
 i_bomb_badpos = 16
 i_wait        = 17
 
+print_events = False
 
 
 #------------------------------------------------------------------------------#
@@ -59,7 +60,6 @@ BOMB_WITH_NO_TARGET    = 'BOMB_WITH_NO_TARGET'
 HOLD_BOMB_NO_TARGET    = 'HOLD_BOMB_NO_TARGET'
 MOVED_AWAY_FROM_DANGER = 'MOVED_AWAY_FROM_DANGER'
 
-print_events = False
 #------------------------------------------------------------------------------#
 #                         Class to run multiple regressor                      #
 #------------------------------------------------------------------------------#
@@ -485,7 +485,7 @@ def reward_its_a_trap(self, action, events, new_game_state):
 def reward_moving_to_coin(self, events, new_game_state):
     #print('coin features old: ', self.trainingXold[-1, 4:10])
     #print('coin features new: ', self.trainingXnew[-1, 4:10])
-    if 'COIN_COLLECTED' not in events and len(new_game_state['coins']) > 0 and 'COIN_FOUND' not in events:
+    if 'COIN_COLLECTED' not in events and len(new_game_state['coins']) > 0 and 'COIN_FOUND' not in events and self.trainingXold[-1, i_coin_dis] > 0:
         # Better to check if coin dis not 0 in old 
         if self.trainingXnew[-1, i_coin_dis] < self.trainingXold[-1, i_coin_dis]:
             events.append(MOVED_TOWARDS_COIN1)

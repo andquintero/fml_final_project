@@ -139,9 +139,6 @@ def state_to_features(game_state: dict) -> np.array:
     #--------------------------------------------------------------------------#
     #                              Field graphs                                #
     #--------------------------------------------------------------------------#
-    # Create graph with paths to all crates
-  
-    graph_empty_field = make_field_graph(np.invert(field_ >= 0)*1)
     graph_walkable    = make_field_graph(field_)
     #print('graph_walkable: ', graph_walkable)
     #--------------------------------------------------------------------------#
@@ -177,10 +174,28 @@ def state_to_features(game_state: dict) -> np.array:
     #--------------------------------------------------------------------------#
     #                        Crate related features                            #
     #--------------------------------------------------------------------------#
+    # Filter our those crates that will explode by an active bomb
+    # Set crates that will explode to -1
+    for bomb in bombs_location:
+        for direction in area:
+            loc = bomb
+            for i in range(1,4):
+                neighbor = tuple(map(sum, zip(loc, direction)))
+                if field[neighbor[0], neighbor[1]] == -1:
+                    break
+                if field[neighbor[0], neighbor[1]] == 1:
+                    field_[neighbor[0], neighbor[1]] = -1
+                loc = neighbor
+    # Create graph with paths to all crates
+    graph_empty_field = make_field_graph(np.invert(field_ >= 0)*1)
+    #print('Field target crates -1: ', np.flip(np.flip(field_, axis=0).T,axis=1))
+
+
     # Distance to 3 closest crates and number of crates that can be blown away at current position
-    xcrate, ycrate = np.where(field==1)
+    xcrate, ycrate = np.where(field_==1)
     crates = [(xcrate[i], ycrate[i]) for i in range(len(xcrate))]
 
+    
     if len(crates) > 0:      
         # Look for closest crate
         #print("Target crate:", look_for_targets_dist(field_ >= 0, location, crates))
@@ -342,7 +357,7 @@ def state_to_features(game_state: dict) -> np.array:
     # print('Feature bombsf n: ', bombsf.shape)
     #features = np.hstack((sur_val, coinf, cratef, bombsf, np.array(good_spot), good_step))
     features = np.hstack((good_step[0:4], coinf, cratef, bombsf, np.array(good_spot), good_step[4]))
-    #print('features: ', features)
+    print('features: ', features)
     return features.reshape(1, -1)
 
 def explosion_zone(field, bomb_reldis, bombs_location, location):
