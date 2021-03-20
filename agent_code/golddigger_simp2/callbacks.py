@@ -23,7 +23,7 @@ from lightgbm import LGBMRegressor
 #reset = False
 random_prob = 0.1
 trackNcoins = 1
-trackNcrates = 1
+trackNcrates = 6
 #------------------------------------------------------------------------------#
 
 ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
@@ -152,13 +152,25 @@ def state_to_features(game_state: dict) -> np.array:
     # Distance to all coins
     if len(coins)>0:
         # calculate distance to each coin
-        coinf = look_for_targets_dist(field_ == 0, location, coins)
+        coin_dist = [BFS_SP(graph_walkable, location, coin, return_path=False) for coin in coins]
+        # if path is blocked by a bomb or crate then distance is returned as None
+        coin_dist = np.array([1000 if d is None else d for d in coin_dist])
+        coin_reldis = np.array(coins) - np.array(location)[None,]
+        idx = np.argsort(coin_dist)[0]
+        if coin_dist[idx] == 1000: 
+            # this only works if tracking 1 coind
+            coinf = np.zeros(3)
+            #coin_dist[coin_dist == 1000] = 0
+        else:
+            coinf = np.hstack((coin_dist[idx, None], coin_reldis[idx, :])).flatten()
 
+        # coinf, best_coin_pos = look_for_targets_dist(field_ == 0, location, coins)
+        # coinf[0] = BFS_SP(graph_walkable, location, best_coin_pos, return_path=False)
     else:
-        coinf = []
+        coinf = np.zeros(3)
 
-    to_fill = trackNcoins*3 - len(coinf)
-    coinf = np.hstack((coinf, np.repeat(0, to_fill)))
+    #to_fill = trackNcoins*3 - len(coinf)
+    #coinf = np.hstack((coinf, np.repeat(0, to_fill)))
     #print('coinf: ', coinf)
     #coinf = np.hstack((coinf, np.repeat(np.nan, to_fill)))
 
@@ -172,8 +184,21 @@ def state_to_features(game_state: dict) -> np.array:
     if len(crates) > 0:      
         # Look for closest crate
         #print("Target crate:", look_for_targets_dist(field_ >= 0, location, crates))
-        cratef = look_for_targets_dist(field_ >= 0, location, crates)
-        
+        #cratef = look_for_targets_dist(field_ >= 0, location, crates)
+        crate_reldis = np.array(crates) - np.array(location)[None,]
+        idx = np.argsort(np.sum(np.abs(crate_reldis), axis=1))[0:trackNcrates]
+        crate_reldis = crate_reldis[idx]
+        crates2 = [crates[i] for i in idx]
+        crate_dist = [BFS_SP(graph_empty_field, location, crate, return_path=False) for crate in crates2]
+        # if path is blocked by a bomb or crate then distance is returned as None
+        crate_dist = np.array([1000 if d is None else d for d in crate_dist])
+        idx = np.argsort(crate_dist)[0] # select the closest crate
+        if crate_dist[idx] == 1000: 
+            # this only works if tracking 1 coind
+            cratef = np.zeros(3)
+            #coin_dist[coin_dist == 1000] = 0
+        else:
+            cratef = np.hstack((crate_dist[idx, None], crate_reldis[idx, :])).flatten()
     else:
         cratef = np.zeros(3)
 
@@ -426,7 +451,7 @@ def look_for_targets_dist(free_space, start, targets, logger=None):
     #print('start: ', start)
     
     reldis = np.array(current) - np.array(start)
-    return np.hstack((best_dist, reldis))
+    return (np.hstack((best_dist, reldis)), current)
 
 
 def make_field_graph(field):

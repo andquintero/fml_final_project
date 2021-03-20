@@ -58,7 +58,7 @@ MOVED_AWAY_FROM_CRATE1 = 'MOVED_AWAY_FROM_CRATE1'
 BOMB_WITH_NO_TARGET    = 'BOMB_WITH_NO_TARGET'
 MOVED_AWAY_FROM_DANGER = 'MOVED_AWAY_FROM_DANGER'
 
-print_events = True
+print_events = False
 #------------------------------------------------------------------------------#
 #                         Class to run multiple regressor                      #
 #------------------------------------------------------------------------------#
@@ -113,7 +113,7 @@ def setup_training(self):
     # Start GradientBoostingRegressor for every action
     reg = [LGBMRegressor(use_missing=False, zero_as_missing=False) for i in range(len(ACTIONS))]
     self.model = MultiRegression(reg)
-    self.nFeatures = 4 + (3 * trackNcoins) + (3 * trackNcrates) + 7 + 1
+    self.nFeatures = 4 + (3 * trackNcoins) + (3) + 7 + 1
     if self.reset is True:
 
         self.random_prob = 1
@@ -419,65 +419,67 @@ def reward_its_a_trap(self, action, events, new_game_state):
     # i_bomb_ticker = 13
     # i_bomb_badpos = 16
     # i_wait        = 17
-
-
     
     # Check if Bomb action was done (i_bomb_avail), and it was a bad spot (i_bomb_badpos)
-    if self.trainingXold[-1, i_bomb_badpos] == 0 and self.trainingXold[-1, 11] == 1 and action == 'BOMB':
+    if self.trainingXold[-1, i_bomb_badpos] == 0 and action == 'BOMB':
         events.append(ITS_A_TRAP)
         #print("ITS_A_TRAP: Bad spot")
     
     # Check if the seleced path was a dead end
-    #print('Its a trap ', self.trainingXnew[-1, [0,1,2,3,23]])
-    if all(self.trainingXnew[-1, [0,1,2,3,17]] == -1):
+    if all(self.trainingXnew[-1, [0,1,2,3,i_wait]] == -1):
         events.append(ITS_A_TRAP)
         #print("ITS_A_TRAP: dead end")
     # Moving into danger
-    #print("Bomb can harm old: ", self.trainingXold[-1, 12]==1,  self.trainingXold[-1, 12])
-    #print("Bomb can harm new: ", self.trainingXnew[-1, 12]==1,  self.trainingXnew[-1, 12])
+    #print("Bomb can harm old: ", self.trainingXold[-1, i_bomb_harms]==1,  self.trainingXold[-1, i_bomb_harms])
+    #print("Bomb can harm new: ", self.trainingXnew[-1, i_bomb_harms]==1,  self.trainingXnew[-1, i_bomb_harms])
 
-    # Check if the last movement was available
-    idx = np.where(self.trainingXold[-1, [0,1,2,3,17,11]] == [0,0,0,0,0,1])[0]
+    # Check if the last movement was a good movement (did not move into a harmful position)
+    idx = np.where(self.trainingXold[-1, [0,1,2,3,i_wait,i_bomb_avail]] == [0,0,0,0,0,1])[0]
     #print('action in ACTIONS', action in [ACTIONS[i] for i in idx])
-    if action not in [ACTIONS[i] for i in idx] and self.trainingXnew[-1, 12] == 1:
+    if action not in [ACTIONS[i] for i in idx] and self.trainingXnew[-1, i_bomb_harms] == 1:
         events.append(ITS_A_TRAP)
         #print("ITS_A_TRAP: move in wrong dir")
-    elif self.trainingXold[-1, 12] == 0 and self.trainingXnew[-1, 12] == 1  and action != 'BOMB' :
+    elif self.trainingXold[-1, i_bomb_harms] == 0 and self.trainingXnew[-1, i_bomb_harms] == 1  and action != 'BOMB' :
         events.append(ITS_A_TRAP)
         #print("ITS_A_TRAP: moving into danger zone")
-        #print("movement tiles old: ", self.trainingXold[-1, [0,1,2,3,17]])
-        #print("movement tiles new: ", self.trainingXnew[-1, [0,1,2,3,17]])
+        #print("movement tiles old: ", self.trainingXold[-1, [0,1,2,3,i_wait]])
+        #print("movement tiles new: ", self.trainingXnew[-1, [0,1,2,3,i_wait]])
     
 
 
     if 'INVALID_ACTION' not in events and 'ITS_A_TRAP' not in events:
-        if self.trainingXold[-1, 12] == 1 and self.trainingXnew[-1, 12] == 0:
+        if self.trainingXold[-1, i_bomb_harms] == 1 and self.trainingXnew[-1, i_bomb_harms] == 0:
             # Check if moving away from danger, bomb is harmfull (12) ==1
             #print("MOVED_AWAY_FROM_DANGER: moved from danger to safety")
             events.append(MOVED_AWAY_FROM_DANGER)
-        elif any(self.trainingXnew[-1, [0,1,2,3,17]] == 0) and self.trainingXnew[-1, 12] == 1 and 'BOMB_DROPPED' not in events and action != 'WAIT':
+        elif any(self.trainingXnew[-1, [0,1,2,3]] == 0) and self.trainingXnew[-1, i_bomb_harms] == 1 and 'BOMB_DROPPED' not in events and action != 'WAIT':
             # Check if in danger zone and there's scape route
             #print("MOVED_AWAY_FROM_DANGER: in danger zone but still a way to scape")
             events.append(MOVED_AWAY_FROM_DANGER)
-        elif self.trainingXold[-1, 17] == 0 and all(self.trainingXold[-1, [0,1,2,3]] == -1) and action == 'WAIT':
+        elif self.trainingXold[-1, i_wait] == 0 and all(self.trainingXold[-1, [0,1,2,3]] == -1) and action == 'WAIT':
             # Check if staying waiting is the only action
             #print("MOVED_AWAY_FROM_DANGER: Waiting is the best option to escape")
             events.append(MOVED_AWAY_FROM_DANGER)
-        # elif any(self.trainingXnew[-1, [0,1,2,3,17]] == 0) and 'BOMB_DROPPED' in events:
+        # elif any(self.trainingXnew[-1, [0,1,2,3,i_wait]] == 0) and 'BOMB_DROPPED' in events:
         #     # Check if bomb was dropped and there's scape route
         #     #print("placed a bomb but there is a escape route")
         #     events.append(MOVED_AWAY_FROM_DANGER)
     
 
 def reward_moving_to_coin(self, events, new_game_state):
+    #print('coin features old: ', self.trainingXold[-1, 4:10])
+    #print('coin features new: ', self.trainingXnew[-1, 4:10])
     if 'COIN_COLLECTED' not in events and len(new_game_state['coins']) > 0 and 'COIN_FOUND' not in events:
-        if self.trainingXnew[-1, 4] < self.trainingXold[-1, 4]:
+        if self.trainingXnew[-1, i_coin_dis] < self.trainingXold[-1, i_coin_dis]:
             events.append(MOVED_TOWARDS_COIN1)
         else:
             events.append(MOVED_AWAY_FROM_COIN1)
-
-    if 'CRATE_DESTROYED' not in events and 'ITS_A_TRAP' not in events and 'BOMB_DROPPED' not in events:     
-        if self.trainingXnew[-1, 7] < self.trainingXold[-1, 7]:
+    
+    
+    #if 'CRATE_DESTROYED' not in events and 'ITS_A_TRAP' not in events and 'BOMB_DROPPED' not in events:     
+    # Checks also if there is at leat one crate
+    if 'CRATE_DESTROYED' not in events and 'BOMB_DROPPED' not in events and np.any(new_game_state['field'] == 1) :     
+        if self.trainingXnew[-1, i_crate_dis] < self.trainingXold[-1, i_crate_dis]:
             events.append(MOVED_TOWARDS_CRATE1)
         else:
             events.append(MOVED_AWAY_FROM_CRATE1)
