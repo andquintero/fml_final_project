@@ -352,6 +352,20 @@ def state_to_features(game_state: dict) -> np.array:
     movement_action = [(0,-1), (1,0), (0,1), (-1,0), (0,0)]
     # Find which routes to a free tile are a trap!
     if len(bombs)>0:
+        # Filter out bombs out of reach, non threatening
+        # bombs that are not threatening for any of the 5 possible positions
+        bad_bombs_idx = []
+        for i in range(len(bombs_location)):
+            x = []
+            for j in range(len(movement_action)):
+                a_location = tuple(map(sum, zip(location, movement_action[j])))
+                x.extend(explosion_zone(field, bomb_reldis[i], [bombs_location[i]], a_location))
+                #print('a_location', a_location, 'bombs_location[i]', bombs_location[i], 'danger', x)
+            # Bad bomb is targetting one of the possible future steps
+            bad_bombs_idx.append(i) if 1 in x else None
+        #print('bombs_location', bombs_location, 'bad bombs:', bad_bombs_idx)
+
+
         # Filter out paths that are not reachable before bomb goes off
 
         # returns a list for each path, 1 Harm, 0 No harm
@@ -360,7 +374,7 @@ def state_to_features(game_state: dict) -> np.array:
         #print("bombs_ticker[i]", bombs_ticker, 'path len', [len(t) for t in free_tile_escape])
         for tile_path in free_tile_escape:
             x = []
-            for i in range(len(bombs_location)):
+            for i in bad_bombs_idx:
                 issafe =  explosion_zone(field, bomb_reldis[i], [bombs_location[i]], tile_path[-1])
                 if 0 in issafe  and len(tile_path)-1 <= bombs_ticker[i]+1: 
                     # you can walk to safe tile before bomb goes off
