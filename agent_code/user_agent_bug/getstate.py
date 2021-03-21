@@ -320,7 +320,7 @@ def state_to_features(game_state: dict) -> np.array:
     # Also returns the direction of scape
 
     # filter out free fields in agent radius of 4
-    print('graph_walkable inside bomb;', graph_walkable)
+    #print('graph_walkable inside bomb;', graph_walkable)
     free_tiles = list(graph_walkable.keys())
     tile_dis = np.abs(np.array(free_tiles) - np.array(location)[None,])
     idx = np.where(np.sum(tile_dis <= 4, axis=1) == 2)[0]
@@ -360,13 +360,15 @@ def state_to_features(game_state: dict) -> np.array:
     if len(bombs)>0:
         # Filter out paths that are not reachable before bomb goes off
 
-        
+        # fix bomb ticker
         # returns a list for each path, 1 Harm, 0 No harm
         danger_last_tiles = []
+        print("bombs_ticker[i]", bombs_ticker, 'path len', [len(t) for t in free_tile_escape])
         for tile_path in free_tile_escape:
             x = []
             for i in range(len(bombs_location)):
-                if len(tile_path) < bombs_ticker[i]:
+
+                if len(tile_path) < bombs_ticker[i] + 1:
                     # "Dead end"
                     x.append(1)
                 else:
@@ -377,17 +379,17 @@ def state_to_features(game_state: dict) -> np.array:
 
         #danger_last_tiles = [explosion_zone(field, bomb_reldis, bombs_location, tile_path[-1]) for tile_path in free_tile_escape]
         # if there are no harmful bombs in the last tile
-        print('free_tile_escape:', free_tile_escape)
+        #print('free_tile_escape:', free_tile_escape)
         no_danger_last_tiles = np.where([1 not in danger_last_tile for danger_last_tile in danger_last_tiles])[0]
         good_escape_routes = [free_tile_escape[i] for i in no_danger_last_tiles]
-        print('good_escape_routes:', good_escape_routes)
+        #print('good_escape_routes:', good_escape_routes)
         # get the next step in the good escape routes
         # If the path is len 1, then the best option for this route is to staty still
         good_next_tiles = [route[1] if len(route)>1 else route[0] for route in good_escape_routes ]
         good_next_tiles = list(set(good_next_tiles)) # the the unique good tiles
 
 
-        print('good_next_tiles:', good_next_tiles)
+        #print('good_next_tiles:', good_next_tiles)
         # List of tupples with relative coordinates of next good step
         if len(good_next_tiles) > 0:
             good_step = list(map(tuple, np.array(good_next_tiles) - np.array(location)[None,]))
@@ -464,6 +466,7 @@ def explosion_zone(field, bomb_reldis, bombs_location, location):
         # Location of bomb and player
         bombl = bombs_location[i]
         
+        # add by ticker + 1
         if bomb_mindist[i] >= 4 or not any(bombl == loc):
             # 'NO HARM'
             bomb_harm.append(0)

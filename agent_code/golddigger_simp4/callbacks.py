@@ -316,7 +316,7 @@ def state_to_features(game_state: dict) -> np.array:
         for tile_path in free_tile_escape:
             x = []
             for i in range(len(bombs_location)):
-                if len(tile_path) < bombs_ticker[i]:
+                if len(tile_path) < bombs_ticker[i] + 1:
                     # "Dead end"
                     x.append(1)
                 else:

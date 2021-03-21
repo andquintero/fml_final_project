@@ -176,7 +176,6 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
     """
     self.logger.debug(f'Encountered game event(s) {", ".join(map(repr, events))} in step {new_game_state["step"]}')
     
-    new_features = state_to_features(new_game_state)
     # if new_game_state['step'] == 1:
     #     print('Features:', new_features)
     #     print('Bombs action available: ',  new_features[0,23]==1)
@@ -188,6 +187,7 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         location_history.append(location)
 
         old_features = state_to_features(old_game_state)
+        new_features = state_to_features(new_game_state)
 
         # print('self location', location)
         # print('Features:', old_features)

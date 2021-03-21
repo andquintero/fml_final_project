@@ -450,7 +450,7 @@ def reward_its_a_trap(self, action, events, new_game_state):
     #--------------------------------------------------------------------------#
     #                     Penalize if moving into a trap                       #
     #--------------------------------------------------------------------------#
-    printhelp = True
+    printhelp = False
     print("movement tiles old: ", self.trainingXold[-1, [0,1,2,3,i_wait]]) if printhelp else None
     print("movement tiles new: ", self.trainingXnew[-1, [0,1,2,3,i_wait]]) if printhelp else None
 
