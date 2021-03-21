@@ -39,7 +39,7 @@ i_wait         = 14
 i_enemy_dis    = 15
 i_nenemies_exp = 18
 
-print_events = True
+print_events = False
 
 
 #------------------------------------------------------------------------------#

@@ -134,8 +134,8 @@ def state_to_features(game_state: dict) -> np.array:
     
     explosion_crates_map = (field == 1) * explosion_map
     print('Field explosion_map: ', np.flip(np.flip((explosion_map==1)*1, axis=0).T,axis=1))
-    print('Field explosion_crates_map: ', np.flip(np.flip(explosion_crates_map, axis=0).T,axis=1))
-    print('Field graph_walkable: ', np.flip(np.flip(np.invert(field_ == 0)*1, axis=0).T,axis=1))
+    #print('Field explosion_crates_map: ', np.flip(np.flip(explosion_crates_map, axis=0).T,axis=1))
+    #print('Field graph_walkable: ', np.flip(np.flip(np.invert(field_ == 0)*1, axis=0).T,axis=1))
 
     # agent movements (top - right - down - left)
     area = [(0,-1), (1,0), (0,1), (-1,0)]
