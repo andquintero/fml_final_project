@@ -261,6 +261,9 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     if print_events:
         print('last_action', last_action, ' reward: ', reward)
         print('events: ', events)
+        print('self.trainingXold', self.trainingXold[-1])
+        print('self.trainingXnew', self.trainingXnew[-1])
+
 
     idx_action = ACTIONS.index(last_action)
     # Update tables with Q valuesm rewards and action
@@ -453,6 +456,8 @@ def reward_its_a_trap(self, action, events, new_game_state):
     printhelp = True
     print("movement tiles old: ", self.trainingXold[-1, [0,1,2,3,i_wait]]) if printhelp else None
     print("movement tiles new: ", self.trainingXnew[-1, [0,1,2,3,i_wait]]) if printhelp else None
+    print("self.trainingXnew[-1, i_bomb_harms] == 1: ", self.trainingXnew[-1, i_bomb_harms] == 1) if printhelp else None
+    
 
     # Check if Bomb action was done (i_bomb_avail), and it was a bad spot (i_bomb_badpos)
     # This check is reduncdant with the -500 penalization by dropping a bomb 

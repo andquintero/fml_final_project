@@ -310,24 +310,31 @@ def state_to_features(game_state: dict) -> np.array:
     if len(bombs)>0:
         # Filter out paths that are not reachable before bomb goes off
 
-        
         # returns a list for each path, 1 Harm, 0 No harm
+        #print('free_tile_escape:', free_tile_escape)
         danger_last_tiles = []
+        #print("bombs_ticker[i]", bombs_ticker, 'path len', [len(t) for t in free_tile_escape])
         for tile_path in free_tile_escape:
             x = []
             for i in range(len(bombs_location)):
-                if len(tile_path) < bombs_ticker[i] + 1:
+                issafe =  explosion_zone(field, bomb_reldis[i], [bombs_location[i]], tile_path[-1])
+                if 0 in issafe  and len(tile_path)-1 <= bombs_ticker[i]+1: 
+                    # you can walk to safe tile before bomb goes off
+                    x.append(0)
+                elif 0 in issafe and len(tile_path)-1 > bombs_ticker[i]+1: 
                     # "Dead end"
                     x.append(1)
+                elif 0 in issafe:
+                    # is safe
+                    x.append(0)
                 else:
-                    #print('bombs_location', bombs_location, 'aaaaaa ',  bombs_location[i])
-                    x.extend(explosion_zone(field, bomb_reldis[i], [bombs_location[i]], tile_path[-1]))
+                    x.append(1)
             danger_last_tiles.append(x)
 
 
         #danger_last_tiles = [explosion_zone(field, bomb_reldis, bombs_location, tile_path[-1]) for tile_path in free_tile_escape]
         # if there are no harmful bombs in the last tile
-        no_danger_last_tiles = np.where([1 not in danger_last_tile for danger_last_tile in danger_last_tiles])[0]
+        no_danger_last_tiles = np.where([0 in danger_last_tile for danger_last_tile in danger_last_tiles])[0]
         good_escape_routes = [free_tile_escape[i] for i in no_danger_last_tiles]
         # get the next step in the good escape routes
         # If the path is len 1, then the best option for this route is to staty still
