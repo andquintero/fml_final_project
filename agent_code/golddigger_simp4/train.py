@@ -116,7 +116,7 @@ def setup_training(self):
     # Start GradientBoostingRegressor for every action
     reg = [LGBMRegressor(use_missing=False, zero_as_missing=False) for i in range(len(ACTIONS))]
     self.model = MultiRegression(reg)
-    self.nFeatures = 4 + (3 * trackNcoins) + (3) + 7 + 1
+    self.nFeatures = 4 + (3 * trackNcoins) + (3 * trackNcrates) + 7 + 1
     if self.reset is True:
 
         self.random_prob = 1
@@ -495,10 +495,27 @@ def reward_its_a_trap(self, action, events, new_game_state):
     #--------------------------------------------------------------------------#
     #         Penalize or reward if moving into a dead end free way            #
     #--------------------------------------------------------------------------#
+    # This reward only works of the option find dead ends (line 28 in callbacks is True)
+    # It has to be fine tune, because in some cases produces and infinite reward loop 
+    # by moving away from a dead end and then comming back to the old spot 
+    # because the target was closer to it:
+    # e.g.:
+    # self_action LEFT  reward:  39
+    # events:  ['MOVED_LEFT', 'MOVED_TO_FREE_WAY', 'MOVED_AWAY_FROM_CRATE1']
+    # old_moves:  [-1.  1. -1.  1.]
+    # self_action RIGHT  reward:  19
+    # events:  ['MOVED_RIGHT', 'MOVED_TOWARDS_CRATE1']
+    # old_moves:  [1. 0. 1. 1.]
+    # self_action LEFT  reward:  39
+    # events:  ['MOVED_LEFT', 'MOVED_TO_FREE_WAY', 'MOVED_AWAY_FROM_CRATE1']
+    # old_moves:  [-1.  1. -1.  1.]
+    # self_action RIGHT  reward:  19
+    # events:  ['MOVED_RIGHT', 'MOVED_TOWARDS_CRATE1']
     #old_moves = self.trainingXold[-1, [0,1,2,3,i_wait]]
     old_moves = self.trainingXold[-1, [0,1,2,3]]
 
     if 'INVALID_ACTION' not in events and 'ITS_A_TRAP' not in events and action != 'BOMB' and action != 'WAIT':
+        #print('old_moves: ', old_moves)
         if np.any(old_moves == 1) and old_moves[ACTIONS.index(action)] == 0:
             # if the selected action was dead end == 0, if it was a better way == 1 was available
             events.append(MOVED_INTO_DEAD_END)

@@ -458,7 +458,7 @@ def reward_its_a_trap(self, action, events, new_game_state):
        events.append(ITS_A_TRAP)
        #print("ITS_A_TRAP: Bad spot")
     
-    # Check if the seleced path was a dead end
+    # Check if the seleced path was a dead end and trap
     if all(self.trainingXnew[-1, [0,1,2,3,i_wait]] == -1):
         events.append(ITS_A_TRAP)
         #print("ITS_A_TRAP: dead end")
@@ -503,6 +503,23 @@ def reward_its_a_trap(self, action, events, new_game_state):
     #--------------------------------------------------------------------------#
     #         Penalize or reward if moving into a dead end free way            #
     #--------------------------------------------------------------------------#
+    # This reward only works of the option find dead ends (line 28 in callbacks is True)
+    # It has to be fine tune, because in some cases produces and infinite reward loop 
+    # by moving away from a dead end and then comming back to the old spot 
+    # because the target was closer to it:
+    # e.g.:
+    # self_action LEFT  reward:  39
+    # events:  ['MOVED_LEFT', 'MOVED_TO_FREE_WAY', 'MOVED_AWAY_FROM_CRATE1']
+    # old_moves:  [-1.  1. -1.  1.]
+    # self_action RIGHT  reward:  19
+    # events:  ['MOVED_RIGHT', 'MOVED_TOWARDS_CRATE1']
+    # old_moves:  [1. 0. 1. 1.]
+    # self_action LEFT  reward:  39
+    # events:  ['MOVED_LEFT', 'MOVED_TO_FREE_WAY', 'MOVED_AWAY_FROM_CRATE1']
+    # old_moves:  [-1.  1. -1.  1.]
+    # self_action RIGHT  reward:  19
+    # events:  ['MOVED_RIGHT', 'MOVED_TOWARDS_CRATE1']
+
     #old_moves = self.trainingXold[-1, [0,1,2,3,i_wait]]
     old_moves = self.trainingXold[-1, [0,1,2,3]]
 
@@ -537,7 +554,7 @@ def reward_moving_to_coin(self, events, new_game_state):
 
 
 def reward_enemy_targeting(self, events, new_game_state):
-     crate_num = 0
+    #crate_num = 0
     # Bomb action available (i_bomb_avail) and crates that will explode (i_ncrates_exp)
     if self.trainingXold[-1, i_bomb_avail] == 1 and self.trainingXnew[-1,i_bomb_avail] == 0:
         crate_num = self.trainingXold[-1, i_ncrates_exp]
@@ -560,7 +577,7 @@ def reward_enemy_targeting(self, events, new_game_state):
     #i_enemy_dis    = 27
     #i_nenemies_exp = 30
 
-    if 'BOMB_DROPPED' in events and self.trainingXnew[-1, i_nenemies_exp] > 0) :     
+    if 'BOMB_DROPPED' in events and self.trainingXnew[-1, i_nenemies_exp] > 0 :     
         events.append(TARGETED_ENEMY)
 
     if 'COIN_COLLECTED' not in events and len(new_game_state['coins']) > 0 and 'COIN_FOUND' not in events and self.trainingXold[-1, i_coin_dis] > 0:

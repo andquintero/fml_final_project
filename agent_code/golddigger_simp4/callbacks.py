@@ -21,9 +21,10 @@ from lightgbm import LGBMRegressor
 ## WARNING!!!!
 # if set to True, reset the whole training
 #reset = False
-random_prob = 0.1
-trackNcoins = 1
-trackNcrates = 6
+random_prob   = 0.1
+trackNcoins   = 1
+trackNcrates  = 1
+find_dead_end = False
 #------------------------------------------------------------------------------#
 
 ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
@@ -199,7 +200,7 @@ def state_to_features(game_state: dict) -> np.array:
         #print("Target crate:", look_for_targets_dist(field_ >= 0, location, crates))
         #cratef = look_for_targets_dist(field_ >= 0, location, crates)
         crate_reldis = np.array(crates) - np.array(location)[None,]
-        idx = np.argsort(np.sum(np.abs(crate_reldis), axis=1))[0:trackNcrates]
+        idx = np.argsort(np.sum(np.abs(crate_reldis), axis=1))[0:6]
         crate_reldis = crate_reldis[idx]
         crates2 = [crates[i] for i in idx]
         crate_dist = [BFS_SP(graph_empty_field, location, crate, return_path=False) for crate in crates2]
@@ -347,19 +348,26 @@ def state_to_features(game_state: dict) -> np.array:
         #good_step = np.repeat(np.nan, 5)
     # sum available spaces at this positions use sur
 
-    
-    # agent movements (top - right - down - left - wait)
-    #movement_action = [(0,-1), (1,0), (0,1), (-1,0)]
-    # get info for the surroundings of the agent 
-    field_[location[0], location[1]] = -1 # cannot move back
-    for i in range(len(good_step)-1):
-        if good_step[i] == 0:
-            future_loc = tuple(map(sum, zip(location, movement_action[i])))
 
-            sur = [tuple(map(sum, zip(future_loc, n))) for n in area]
-            sur_val = np.array([field_[c[0], c[1]] for c in sur])
-            # 1 if no dead end, 0 if dead end
-            good_step[i] = (np.sum(np.abs(sur_val) == 0) > 0)*1 
+    # This chunk helps to find dead ends:
+    # values of:
+    # -1: no good way, 
+    # 0 : good way but dead end
+    # 1 : good way and free way
+    # If false values will be just -1 (bad) and 0 (good)
+    if find_dead_end is True:
+        # agent movements (top - right - down - left - wait)
+        #movement_action = [(0,-1), (1,0), (0,1), (-1,0)]
+        # get info for the surroundings of the agent 
+        field_[location[0], location[1]] = -1 # cannot move back
+        for i in range(len(good_step)-1):
+            if good_step[i] == 0:
+                future_loc = tuple(map(sum, zip(location, movement_action[i])))
+
+                sur = [tuple(map(sum, zip(future_loc, n))) for n in area]
+                sur_val = np.array([field_[c[0], c[1]] for c in sur])
+                # 1 if no dead end, 0 if dead end
+                good_step[i] = (np.sum(np.abs(sur_val) == 0) > 0)*1 
 
 
     #--------------------------------------------------------------------------#
