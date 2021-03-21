@@ -371,7 +371,7 @@ def state_to_features(game_state: dict) -> np.array:
             x = []
             for i in range(len(bombs_location)):
                 issafe =  explosion_zone(field, bomb_reldis[i], [bombs_location[i]], tile_path[-1])
-                #print('issafe:', issafe, "0 in issafe", 0 in issafe , 'l path', len(tile_path), 'ticker', bombs_ticker[i], 'tile_path:', tile_path)
+                print('bombs_location', bombs_location[i], 'issafe:', issafe, "0 in issafe", 0 in issafe , 'l path', len(tile_path), 'ticker', bombs_ticker[i], 'tile_path:', tile_path)
                 #print('tile_path:', tile_path)
                 #if location is safe and bombs_ticker[i] == 0:
                 #    x.append(0)
@@ -392,11 +392,11 @@ def state_to_features(game_state: dict) -> np.array:
 
         # if there are no harmful bombs in the last tile
         #print('free_tile_escape:', free_tile_escape)
-        #print('danger_last_tiles:', danger_last_tiles)
-        no_danger_last_tiles = np.where([0 in danger_last_tile for danger_last_tile in danger_last_tiles])[0]
-        #print('no_danger_last_tiles', no_danger_last_tiles)
+        print('danger_last_tiles:', danger_last_tiles)
+        no_danger_last_tiles = np.where([1 not in danger_last_tile for danger_last_tile in danger_last_tiles])[0]
+        print('no_danger_last_tiles', no_danger_last_tiles)
         good_escape_routes = [free_tile_escape[i] for i in no_danger_last_tiles]
-        #print('good_escape_routes:', good_escape_routes)
+        print('good_escape_routes:', good_escape_routes)
         
         
         

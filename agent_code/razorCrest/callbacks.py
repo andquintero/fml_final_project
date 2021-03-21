@@ -174,8 +174,9 @@ def state_to_features(game_state: dict) -> np.array:
                     if neighbor in enemy_location:
                         enemies_to_explode.append(neighbor)
                     loc = neighbor
-
-            enemyf = np.hstack((enemy_dist[idx, None], enemy_reldis[idx, :], np.array(len(enemies_to_explode)))).flatten()
+            #enemies_to_explode = np.array((len(enemies_to_explode)>0)*1) # simplified only 1 and 0
+            enemies_to_explode = np.array(len(enemies_to_explode)) # real n of enemies
+            enemyf = np.hstack((enemy_dist[idx, None], enemy_reldis[idx, :], enemies_to_explode)).flatten()
     else:
         enemyf = np.zeros(4)
 
@@ -377,7 +378,7 @@ def state_to_features(game_state: dict) -> np.array:
 
         #danger_last_tiles = [explosion_zone(field, bomb_reldis, bombs_location, tile_path[-1]) for tile_path in free_tile_escape]
         # if there are no harmful bombs in the last tile
-        no_danger_last_tiles = np.where([0 in danger_last_tile for danger_last_tile in danger_last_tiles])[0]
+        no_danger_last_tiles = np.where([1 not in danger_last_tile for danger_last_tile in danger_last_tiles])[0]
         good_escape_routes = [free_tile_escape[i] for i in no_danger_last_tiles]
         # get the next step in the good escape routes
         # If the path is len 1, then the best option for this route is to staty still
