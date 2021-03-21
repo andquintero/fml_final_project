@@ -26,6 +26,7 @@ trackNcoins   = 1
 trackNcrates  = 1
 trackNbombs   = 4
 find_dead_end = False
+trackBombLoca = False
 #------------------------------------------------------------------------------#
 
 ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
@@ -290,16 +291,20 @@ def state_to_features(game_state: dict) -> np.array:
     else:
         bombsf = []
         bomb_harm = np.zeros(1)
-    to_fill = trackNbombs*3 - len(bombsf)
-    if to_fill > 0:
-        #print('bombsf to_fill:', to_fill)
-        #print('bombsf nofill:', bombsf)
-        # we have to choose if nan or a high number
-        #bombsf = np.hstack((bombsf, np.repeat(np.nan, to_fill)))
-        bombsf = np.hstack((bombsf, np.repeat(0, to_fill)))
-
+    
     bombav = np.array(game_state['self'][2]*1) # if the BOMB action is available
-    bombsf = np.hstack((bombav, bomb_harm, bombsf))
+    if trackBombLoca is True:
+        to_fill = trackNbombs*3 - len(bombsf)
+        if to_fill > 0:
+            #print('bombsf to_fill:', to_fill)
+            #print('bombsf nofill:', bombsf)
+            # we have to choose if nan or a high number
+            #bombsf = np.hstack((bombsf, np.repeat(np.nan, to_fill)))
+            bombsf = np.hstack((bombsf, np.repeat(0, to_fill)))
+
+        bombsf = np.hstack((bombav, bomb_harm, bombsf))
+    else:
+        bombsf = np.hstack((bombav, bomb_harm))
     #print('bombsf:', bombsf)
 
     #--------------------------------------------------------------------------#
@@ -410,12 +415,13 @@ def state_to_features(game_state: dict) -> np.array:
     #--------------------------------------------------------------------------#
     #                         Return state to features                         #
     #--------------------------------------------------------------------------#
-    # print('Feature good_step n: ', good_step.shape)
-    # print('Feature coinf n: ', coinf.shape)
-    # print('Feature cratef n: ', cratef.shape)
-    # print('Feature bombsf n: ', bombsf.shape)
+    # print('Feature good_step n: ', good_step.shape, good_step)
+    # print('Feature coinf n: ', coinf.shape, coinf)
+    # print('Feature cratef n: ', cratef.shape, cratef)
+    # print('Feature bombsf n: ', bombsf.shape, bombsf)
+    # print('Feature enemyf n: ', enemyf.shape, enemyf)
     features = np.hstack((good_step[0:4], coinf, cratef, bombsf, np.array(good_spot), good_step[4], enemyf))
-    # print('features: ', features)
+    #print('features: ', features)
     return features.reshape(1, -1)
 
 def explosion_zone(field, bomb_reldis, bombs_location, location):
@@ -449,7 +455,7 @@ def explosion_zone(field, bomb_reldis, bombs_location, location):
         # Location of bomb and player
         bombl = bombs_location[i]
         
-        if bomb_mindist[i] > 4 or not any(bombl == loc):
+        if bomb_mindist[i] >= 4 or not any(bombl == loc):
             # 'NO HARM'
             bomb_harm.append(0)
         else:
@@ -465,7 +471,7 @@ def explosion_zone(field, bomb_reldis, bombs_location, location):
                 bomb_range = field[f:t, loc[1]]
             #print('bomb_range: ', bomb_range)
             # check if there are walls
-            if len(bomb_range) > 4 or sum(bomb_range == -1) > 0:
+            if len(bomb_range) >= 4 or sum(bomb_range == -1) > 0:
                 # 'NO HARM'
                 bomb_harm.append(0)
             else:

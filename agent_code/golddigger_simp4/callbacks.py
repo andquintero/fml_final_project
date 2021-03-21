@@ -413,7 +413,7 @@ def explosion_zone(field, bomb_reldis, bombs_location, location):
         # Location of bomb and player
         bombl = bombs_location[i]
         
-        if bomb_mindist[i] > 4 or not any(bombl == loc):
+        if bomb_mindist[i] >= 4 or not any(bombl == loc):
             # 'NO HARM'
             bomb_harm.append(0)
         else:
@@ -429,7 +429,7 @@ def explosion_zone(field, bomb_reldis, bombs_location, location):
                 bomb_range = field[f:t, loc[1]]
             #print('bomb_range: ', bomb_range)
             # check if there are walls
-            if len(bomb_range) > 4 or sum(bomb_range == -1) > 0:
+            if len(bomb_range) >= 4 or sum(bomb_range == -1) > 0:
                 # 'NO HARM'
                 bomb_harm.append(0)
             else:
