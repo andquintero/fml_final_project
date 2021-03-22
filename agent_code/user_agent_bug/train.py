@@ -20,6 +20,7 @@ from .callbacks import trackNcoins
 from .callbacks import trackNcrates
 from .callbacks import trackNbombs
 from .callbacks import trackBombLoca
+from .callbacks import log_events
 #from sklearn.ensemble import GradientBoostingRegressor
 # HistGradientBoostingRegressor is still experimental requieres:
 # explicitly require this experimental feature

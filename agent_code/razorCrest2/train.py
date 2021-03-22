@@ -41,6 +41,7 @@ i_nenemies_exp = 18
 i_target_newb  = 19
 
 print_events = False
+log_events = True
 
 
 #------------------------------------------------------------------------------#

@@ -27,6 +27,7 @@ trackNcrates  = 1
 trackNbombs   = 4
 find_dead_end = False
 trackBombLoca = False
+log_events = True
 #------------------------------------------------------------------------------#
 
 ACTIONS = ['UP', 'RIGHT', 'DOWN', 'LEFT', 'WAIT', 'BOMB']
@@ -78,8 +79,10 @@ def act(self, game_state: dict) -> str:
 
     self.logger.debug("Querying model for action.")
     current_features = state_to_features(game_state)
+    if log_events: self.logger.debug(f'state_to_features: {current_features}') 
     #print('state_to_features:', current_features)
     model_pred = self.model.predict(current_features)
+    if log_events: self.logger.debug(f'model predict: {model_pred}') 
     #print('model predict:', model_pred)
     return ACTIONS[np.random.choice(np.flatnonzero(model_pred == model_pred.max())) ]
     #return ACTIONS[np.argmax(model_pred)]
