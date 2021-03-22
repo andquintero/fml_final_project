@@ -127,6 +127,7 @@ def state_to_features(game_state: dict) -> np.array:
         bombs_location_not_self = [bombs_location[i] for i in np.where(location not in bombs_location)[0]]
         for i,j in bombs_location_not_self:
             field_[i,j]=-1
+    field_toagent = field_.copy()
 
     
 
@@ -162,9 +163,10 @@ def state_to_features(game_state: dict) -> np.array:
     #--------------------------------------------------------------------------#
     # Distance to all enemies
     if len(enemies)>0:
+        graph_walkable_to_agent = make_field_graph(field_toagent)
         #enemy_location = [enemy[3] for enemy in enemies]
         # calculate distance to each enemy
-        enemy_dist = [BFS_SP(graph_walkable, location, enemy, return_path=False) for enemy in enemy_location]
+        enemy_dist = [BFS_SP(graph_walkable_to_agent, location, enemy, return_path=False) for enemy in enemy_location]
         # if path is blocked by a bomb or crate then distance is returned as None
         enemy_dist = np.array([1000 if d is None else d for d in enemy_dist])
         enemy_reldis = np.array(enemy_location) - np.array(location)[None,]
