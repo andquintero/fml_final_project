@@ -174,8 +174,8 @@ def state_to_features(game_state: dict) -> np.array:
                     if neighbor in enemy_location:
                         enemies_to_explode.append(neighbor)
                     loc = neighbor
-            #enemies_to_explode = np.array((len(enemies_to_explode)>0)*1) # simplified only 1 and 0
-            enemies_to_explode = np.array(len(enemies_to_explode)) # real n of enemies
+            enemies_to_explode = np.array((len(enemies_to_explode)>0)*1) # simplified only 1 and 0
+            #enemies_to_explode = np.array(len(enemies_to_explode)) # real n of enemies
             enemyf = np.hstack((enemy_dist[idx, None], enemy_reldis[idx, :], enemies_to_explode)).flatten()
     else:
         enemyf = np.zeros(4)
@@ -339,7 +339,7 @@ def state_to_features(game_state: dict) -> np.array:
     long_escapes = np.array(free_tile_dist) >= 4 # This is a good spot 4 tiles
     short_scapes = np.sum(np.array(free_tiles) == np.array(location), axis=1) == 0 # This is a good spot for escape route
     good_spot = 1 if any(long_escapes) or any(short_scapes) else 0  # good spot =1, bad spot = 0
-    good_spot = good_spot if len(crates_to_explode) > 0 and enemyf[3] > 0 else 0 # if no target on sight is a bad spot
+    good_spot = good_spot if len(crates_to_explode) > 0 or enemyf[3] > 0 else 0 # if no target on sight is a bad spot
     
     #print('free_tile_escape', free_tile_escape)
 
@@ -432,7 +432,27 @@ def state_to_features(game_state: dict) -> np.array:
                 sur_val = np.array([field_[c[0], c[1]] for c in sur])
                 # 1 if no dead end, 0 if dead end
                 good_step[i] = (np.sum(np.abs(sur_val) == 0) > 0)*1 
+    
+    #--------------------------------------------------------------------------#
+    #            Check if new bombs are targetting you but not old ones        #
+    #--------------------------------------------------------------------------#
+    if len(bombs)>0:
+        x = [bombs_ticker[i] == 3 and location != bombs_location[i]  for i in range(len(bombs_ticker))]
+        new_bombs_idx = np.where(x)[0]
+        old_bombs_idx = np.where(np.invert(x))[0]
+        
+        if len(new_bombs_idx) > 0:
+            target_bad_bomb = explosion_zone(field, bomb_reldis[i], [bombs_location[i] for i in new_bombs_idx], location)
+            target_new_bomb = 1 if 1 in target_bad_bomb else 0
+            
+            if 1 in target_bad_bomb and len(old_bombs_idx)>0:
+                target_old_bomb = explosion_zone(field, bomb_reldis[i], [bombs_location[i] for i in old_bombs_idx], location)
+                target_new_bomb = 0 if 1 in target_old_bomb else 1
 
+        else:
+            target_new_bomb = 0
+    else:
+            target_new_bomb = 0
 
     #--------------------------------------------------------------------------#
     #                         Return state to features                         #
@@ -442,8 +462,10 @@ def state_to_features(game_state: dict) -> np.array:
     # print('Feature cratef n: ', cratef.shape, cratef)
     # print('Feature bombsf n: ', bombsf.shape, bombsf)
     # print('Feature enemyf n: ', enemyf.shape, enemyf)
-    features = np.hstack((good_step[0:4], coinf, cratef, bombsf, np.array(good_spot), good_step[4], enemyf))
-    #print('features: ', features)
+    
+    #print('features: ', np.hstack((good_step[0:4], coinf, cratef, bombsf, np.array(good_spot), good_step[4], enemyf, target_new_bomb)))
+    features = np.hstack((good_step[0:4], coinf, cratef, bombsf, np.array(good_spot), good_step[4], enemyf, target_new_bomb))
+    print('features: ', features)
     return features.reshape(1, -1)
 
 def explosion_zone(field, bomb_reldis, bombs_location, location):
