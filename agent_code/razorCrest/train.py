@@ -568,25 +568,13 @@ def reward_enemy_targeting(self, events, new_game_state):
     if 'BOMB_DROPPED' in events and self.trainingXnew[-1, i_nenemies_exp] > 0 :     
         events.append(TARGETED_ENEMY)
 
-    if 'KILLED_OPPONENT' not in events and self.trainingXold[-1, i_enemy_dis] > 0:
+    # Keep at least 1 tile of distance
+    if 'KILLED_OPPONENT' not in events and self.trainingXold[-1, i_enemy_dis] > 1:
         if self.trainingXnew[-1, i_enemy_dis] < self.trainingXold[-1, i_enemy_dis]:
             events.append(MOVED_TOWARDS_ENEMY1)
         else:
             events.append(MOVED_AWAY_FROM_ENEMY1)
             
-    
-    #if 'CRATE_DESTROYED' not in events and 'ITS_A_TRAP' not in events and 'BOMB_DROPPED' not in events:     
-    # Checks also if there is at leat one crate
-    if 'CRATE_DESTROYED' not in events and 'BOMB_DROPPED' not in events and np.any(new_game_state['field'] == 1) :     
-        if self.trainingXnew[-1, i_crate_dis] < self.trainingXold[-1, i_crate_dis]:
-            events.append(MOVED_TOWARDS_CRATE1)
-        else:
-            events.append(MOVED_AWAY_FROM_CRATE1)
-
-
-    # TARGETED_ENEMY         = 'TARGETED_ENEMY'
-    # MOVED_TOWARDS_ENEMY1   = 'MOVED_TOWARDS_ENEMY1'
-    # MOVED_AWAY_FROM_ENEMY1 = 'MOVED_AWAY_FROM_ENEMY1'
 
 
         
