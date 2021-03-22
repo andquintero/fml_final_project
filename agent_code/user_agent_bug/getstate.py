@@ -21,7 +21,7 @@ from lightgbm import LGBMRegressor
 ## WARNING!!!!
 # if set to True, reset the whole training
 #reset = False
-random_prob   = 0
+random_prob   = 0.0
 trackNcoins   = 1
 trackNcrates  = 1
 trackNbombs   = 4
@@ -107,16 +107,14 @@ def state_to_features(game_state: dict) -> np.array:
     #--------------------------------------------------------------------------#
 
     # extract the field, coin positions and agent information
-    field = game_state['field'].copy()
-    explosion_map = game_state['explosion_map']
+    field = game_state['field']
     coins = game_state['coins']
     name, score, bomb, location = game_state['self']
     bombs = game_state['bombs']
     bombs_location = [bomb[0] for bomb in bombs]
     enemies = game_state['others']
     
-    
-    
+    #print('Field explosion_map: ', np.flip(np.flip(game_state['explosion_map'], axis=0).T,axis=1))
 
     # Copy of field to change
     field_ = field.copy()
@@ -124,18 +122,13 @@ def state_to_features(game_state: dict) -> np.array:
     if len(bombs)>0:
         #bombs_location = [bomb[0] for bomb in bombs]
         bombs_ticker = np.array([bomb[1] for bomb in bombs])
-        # An old bomb blocks the tile, if ticker is 0 then tile should be free next step
+        # An old bomb blocks the tile
         
-        idx = np.where([bombs_ticker[i] > 0 and location != bombs_location[i] for i in  range(len(bombs))])[0]
-        bombs_blocking = [bombs_location[i] for i in idx]
-        for i,j in bombs_blocking:
+        bombs_location_not_self = [bombs_location[i] for i in np.where(location not in bombs_location)[0]]
+        for i,j in bombs_location_not_self:
             field_[i,j]=-1
 
     
-    explosion_crates_map = (field == 1) * explosion_map
-    print('Field explosion_map: ', np.flip(np.flip((explosion_map==1)*1, axis=0).T,axis=1))
-    #print('Field explosion_crates_map: ', np.flip(np.flip(explosion_crates_map, axis=0).T,axis=1))
-    #print('Field graph_walkable: ', np.flip(np.flip(np.invert(field_ == 0)*1, axis=0).T,axis=1))
 
     # agent movements (top - right - down - left)
     area = [(0,-1), (1,0), (0,1), (-1,0)]
@@ -150,9 +143,7 @@ def state_to_features(game_state: dict) -> np.array:
     #--------------------------------------------------------------------------#
     #                              Field graphs                                #
     #--------------------------------------------------------------------------#
-    #graph_walkable    = make_field_graph(field_)
-    graph_walkable    = make_field_graph(np.invert(field_ == 0)*1)
-    
+    graph_walkable    = make_field_graph(field_)
     #print('graph_walkable: ', graph_walkable)
     #--------------------------------------------------------------------------#
     #--------------------------------------------------------------------------#
@@ -183,8 +174,9 @@ def state_to_features(game_state: dict) -> np.array:
                     if neighbor in enemy_location:
                         enemies_to_explode.append(neighbor)
                     loc = neighbor
-
-            enemyf = np.hstack((enemy_dist[idx, None], enemy_reldis[idx, :], np.array(len(enemies_to_explode)))).flatten()
+            #enemies_to_explode = np.array((len(enemies_to_explode)>0)*1) # simplified only 1 and 0
+            enemies_to_explode = np.array(len(enemies_to_explode)) # real n of enemies
+            enemyf = np.hstack((enemy_dist[idx, None], enemy_reldis[idx, :], enemies_to_explode)).flatten()
     else:
         enemyf = np.zeros(4)
 
@@ -293,7 +285,6 @@ def state_to_features(game_state: dict) -> np.array:
         # Find if the bomb can harm the player
         bomb_harm = np.array(explosion_zone(field, bomb_reldis, bombs_location, location))
         bomb_harm = (np.sum(bomb_harm) > 0)*1
-        #print('bomb can harm', bomb_harm, bomb_harm==1)
         # Features
         idx = np.argsort(np.sum(np.abs(bomb_reldis), axis=1))
         bombsf = np.hstack((bombs_ticker[idx, None], bomb_reldis[idx, :])).flatten()  
@@ -348,7 +339,7 @@ def state_to_features(game_state: dict) -> np.array:
     long_escapes = np.array(free_tile_dist) >= 4 # This is a good spot 4 tiles
     short_scapes = np.sum(np.array(free_tiles) == np.array(location), axis=1) == 0 # This is a good spot for escape route
     good_spot = 1 if any(long_escapes) or any(short_scapes) else 0  # good spot =1, bad spot = 0
-    good_spot = good_spot if len(crates_to_explode) > 0 else 0 # if no target on sight is a bad spot
+    good_spot = good_spot if len(crates_to_explode) > 0 and enemyf[3] > 0 else 0 # if no target on sight is a bad spot
     
     #print('free_tile_escape', free_tile_escape)
 
@@ -365,21 +356,18 @@ def state_to_features(game_state: dict) -> np.array:
         # bombs that are not threatening for any of the 5 possible positions
         bad_bombs_idx = []
         for i in range(len(bombs_location)):
-            #x = []
-            #    for i in range(len(bombs_location)):
-            #        issafe =  explosion_zone(field, bomb_reldis[i], [bombs_location[i]], a_location)
-            #a_loc_danger = [explosion_zone(field, bomb_reldis[i], [bombs_location[i]], a_location) for a_location in movement_action ]
             x = []
             for j in range(len(movement_action)):
                 a_location = tuple(map(sum, zip(location, movement_action[j])))
                 x.extend(explosion_zone(field, bomb_reldis[i], [bombs_location[i]], a_location))
-                print('a_location', a_location, 'bombs_location[i]', bombs_location[i], 'danger', x)
+                #print('a_location', a_location, 'bombs_location[i]', bombs_location[i], 'danger', x)
             # Bad bomb is targetting one of the possible future steps
             bad_bombs_idx.append(i) if 1 in x else None
-        print('bombs_location', bombs_location, 'bad bombs:', bad_bombs_idx)
+        #print('bombs_location', bombs_location, 'bad bombs:', bad_bombs_idx)
 
 
         # Filter out paths that are not reachable before bomb goes off
+
         # returns a list for each path, 1 Harm, 0 No harm
         #print('free_tile_escape:', free_tile_escape)
         danger_last_tiles = []
@@ -388,13 +376,6 @@ def state_to_features(game_state: dict) -> np.array:
             x = []
             for i in bad_bombs_idx:
                 issafe =  explosion_zone(field, bomb_reldis[i], [bombs_location[i]], tile_path[-1])
-                print('bombs_location', bombs_location[i], 'issafe:', issafe, "0 in issafe", 0 in issafe , 'l path', len(tile_path), 'ticker', bombs_ticker[i], 'tile_path:', tile_path)
-                #print('tile_path:', tile_path)
-                #if location is safe and bombs_ticker[i] == 0:
-                #    x.append(0)
-                #if bombs_location[i] not in tile_path:
-                    #if bomb in not the path is safe
-                    #x.append(0)
                 if 0 in issafe  and len(tile_path)-1 <= bombs_ticker[i]+1: 
                     # you can walk to safe tile before bomb goes off
                     x.append(0)
@@ -402,28 +383,22 @@ def state_to_features(game_state: dict) -> np.array:
                     # "Dead end"
                     x.append(1)
                 elif 0 in issafe:
-                    # is save
+                    # is safe
                     x.append(0)
                 else:
                     x.append(1)
             danger_last_tiles.append(x)
 
 
+        #danger_last_tiles = [explosion_zone(field, bomb_reldis, bombs_location, tile_path[-1]) for tile_path in free_tile_escape]
         # if there are no harmful bombs in the last tile
-        #print('free_tile_escape:', free_tile_escape)
-        print('danger_last_tiles:', danger_last_tiles)
         no_danger_last_tiles = np.where([1 not in danger_last_tile for danger_last_tile in danger_last_tiles])[0]
-        print('no_danger_last_tiles', no_danger_last_tiles)
         good_escape_routes = [free_tile_escape[i] for i in no_danger_last_tiles]
-        print('good_escape_routes:', good_escape_routes)
-        
-        
-        
         # get the next step in the good escape routes
         # If the path is len 1, then the best option for this route is to staty still
         good_next_tiles = [route[1] if len(route)>1 else route[0] for route in good_escape_routes ]
         good_next_tiles = list(set(good_next_tiles)) # the the unique good tiles
-        print('good_next_tiles', good_next_tiles)
+
 
         #print('good_next_tiles:', good_next_tiles)
         # List of tupples with relative coordinates of next good step
@@ -462,11 +437,11 @@ def state_to_features(game_state: dict) -> np.array:
     #--------------------------------------------------------------------------#
     #                         Return state to features                         #
     #--------------------------------------------------------------------------#
-    print('Feature good_step n: ', good_step.shape, good_step)
-    print('Feature coinf n: ', coinf.shape, coinf)
-    print('Feature cratef n: ', cratef.shape, cratef)
-    print('Feature bombsf n: ', bombsf.shape, bombsf)
-    print('Feature enemyf n: ', enemyf.shape, enemyf)
+    # print('Feature good_step n: ', good_step.shape, good_step)
+    # print('Feature coinf n: ', coinf.shape, coinf)
+    # print('Feature cratef n: ', cratef.shape, cratef)
+    # print('Feature bombsf n: ', bombsf.shape, bombsf)
+    # print('Feature enemyf n: ', enemyf.shape, enemyf)
     features = np.hstack((good_step[0:4], coinf, cratef, bombsf, np.array(good_spot), good_step[4], enemyf))
     #print('features: ', features)
     return features.reshape(1, -1)
@@ -589,7 +564,7 @@ def make_field_graph(field):
     :param field:  np.array
     :return: dict
     """
-
+    field
 
     # agent movements (top - right - down - left)
     area = [(0,-1), (1,0), (0,1), (-1,0)]

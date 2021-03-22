@@ -213,9 +213,10 @@ def game_events_occurred(self, old_game_state: dict, self_action: str, new_game_
         #reward_moving_back(self, events, new_game_state)
         # If the agent is trapped penalize
         reward_its_a_trap(self, self_action, events, new_game_state)
-        # Rewards according to coin position
+        # Rewards according to coin and crate position
         reward_moving_to_coin(self, events, new_game_state)
-        #reward_moving_to_crate(self, events, new_game_state)
+        # Rewards according to enemy position
+        reward_enemy_targeting(self, events, new_game_state)
         reward = reward_from_events(self, events)
         # Index: find if state was already present in dataset
         idx_action = ACTIONS.index(self_action) if self_action is not None else 0
@@ -254,6 +255,8 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     reward_its_a_trap(self, last_action, events, last_game_state)
     # Rewards according to coin position
     reward_moving_to_coin(self, events, last_game_state)
+    # Rewards according to enemy position
+    reward_enemy_targeting(self, events, last_game_state)
     reward = reward_from_events(self, events)
     
     
@@ -261,9 +264,6 @@ def end_of_round(self, last_game_state: dict, last_action: str, events: List[str
     if print_events:
         print('last_action', last_action, ' reward: ', reward)
         print('events: ', events)
-        print('self.trainingXold', self.trainingXold[-1])
-        print('self.trainingXnew', self.trainingXnew[-1])
-
 
     idx_action = ACTIONS.index(last_action)
     # Update tables with Q valuesm rewards and action
@@ -362,6 +362,10 @@ def reward_from_events(self, events: List[str]) -> int:
         MOVED_AWAY_FROM_DANGER : 500,
         MOVED_INTO_DEAD_END    : -100,
         MOVED_TO_FREE_WAY      : 50,
+
+        TARGETED_ENEMY         : 200,
+        MOVED_TOWARDS_ENEMY1   : 30,
+        MOVED_AWAY_FROM_ENEMY1 : -5,
         
         #BOMB_EXPLODED : 
 
@@ -456,12 +460,11 @@ def reward_its_a_trap(self, action, events, new_game_state):
     printhelp = True
     print("movement tiles old: ", self.trainingXold[-1, [0,1,2,3,i_wait]]) if printhelp else None
     print("movement tiles new: ", self.trainingXnew[-1, [0,1,2,3,i_wait]]) if printhelp else None
-    print("self.trainingXnew[-1, i_bomb_harms] == 1: ", self.trainingXnew[-1, i_bomb_harms] == 1) if printhelp else None
-    
 
     # Check if Bomb action was done (i_bomb_avail), and it was a bad spot (i_bomb_badpos)
     # This check is reduncdant with the -500 penalization by dropping a bomb 
     # in a bad spot in function get_bomb_drop_weight
+    #if self.trainingXold[-1, i_bomb_badpos] == 0 and action == 'BOMB' and self.trainingXold[-1, i_nenemies_exp] == 0:
     if self.trainingXold[-1, i_bomb_badpos] == 0 and action == 'BOMB':
        events.append(ITS_A_TRAP)
        print("ITS_A_TRAP: Bad spot") if printhelp else None
@@ -473,12 +476,12 @@ def reward_its_a_trap(self, action, events, new_game_state):
     # Moving into danger
     #print("Bomb can harm old: ", self.trainingXold[-1, i_bomb_harms]==1,  self.trainingXold[-1, i_bomb_harms])
     #print("Bomb can harm new: ", self.trainingXnew[-1, i_bomb_harms]==1,  self.trainingXnew[-1, i_bomb_harms])
-
+    
+    #!WARNING need to add a new feature to find if it's been targeted by an anemy
+    # and avoid penalizing
     # Check if the last movement was a good movement (did not move into a harmful position)
     idx = np.where(self.trainingXold[-1, [0,1,2,3,i_wait,i_bomb_avail]] >= [0,0,0,0,0,1])[0]
-    print('action in ACTIONS', action in [ACTIONS[i] for i in idx]) if printhelp else None
-    #print('action in ACTIONS', action in [ACTIONS[i] for i in idx]) if printhelp else None
-
+    #print('action in ACTIONS', action in [ACTIONS[i] for i in idx])
     if action not in [ACTIONS[i] for i in idx] and self.trainingXnew[-1, i_bomb_harms] == 1:
         events.append(ITS_A_TRAP)
         print("ITS_A_TRAP: move in wrong dir") if printhelp else None
@@ -562,52 +565,19 @@ def reward_moving_to_coin(self, events, new_game_state):
 
 
 def reward_enemy_targeting(self, events, new_game_state):
-    #crate_num = 0
-    # Bomb action available (i_bomb_avail) and crates that will explode (i_ncrates_exp)
-    if self.trainingXold[-1, i_bomb_avail] == 1 and self.trainingXnew[-1,i_bomb_avail] == 0:
-        crate_num = self.trainingXold[-1, i_ncrates_exp]
-        #print('crates to explode: ', crate_num)
-    #if 'INVALID_ACTION' in events or self.trainingXold[-1, i_bomb_badpos] == 0:
-    #    # Check if bomb dropped was ivalid or in a bad spot
-    #    crate_num = 0
-    if 'INVALID_ACTION' in events:
-       # Check if bomb dropped was ivalid or in a bad spot
-       crate_num = 0
-
-    # Reward holding a bomb when no target on sight and bomb option is available
-    #if 'BOMB_DROPPED' not in events and self.trainingXold[-1, i_ncrates_exp] ==0:
-    if 'BOMB_DROPPED' not in events and self.trainingXold[-1, i_bomb_avail] == 1 and self.trainingXold[-1, i_ncrates_exp] == 0:
-        events.append(HOLD_BOMB_NO_TARGET)
-
-    #return crate_num if crate_num > 0 else -20
-
-
     #i_enemy_dis    = 27
     #i_nenemies_exp = 30
 
-    if 'BOMB_DROPPED' in events and self.trainingXnew[-1, i_nenemies_exp] > 0 :     
+    if 'BOMB_DROPPED' in events and self.trainingXold[-1, i_nenemies_exp] > 0 :     
         events.append(TARGETED_ENEMY)
 
-    if 'COIN_COLLECTED' not in events and len(new_game_state['coins']) > 0 and 'COIN_FOUND' not in events and self.trainingXold[-1, i_coin_dis] > 0:
-        # Better to check if coin dis not 0 in old 
-        if self.trainingXnew[-1, i_coin_dis] < self.trainingXold[-1, i_coin_dis]:
-            events.append(MOVED_TOWARDS_COIN1)
+    # Keep at least 1 tile of distance
+    if 'KILLED_OPPONENT' not in events and self.trainingXold[-1, i_enemy_dis] > 1:
+        if self.trainingXnew[-1, i_enemy_dis] < self.trainingXold[-1, i_enemy_dis]:
+            events.append(MOVED_TOWARDS_ENEMY1)
         else:
-            events.append(MOVED_AWAY_FROM_COIN1)
-    
-    
-    #if 'CRATE_DESTROYED' not in events and 'ITS_A_TRAP' not in events and 'BOMB_DROPPED' not in events:     
-    # Checks also if there is at leat one crate
-    if 'CRATE_DESTROYED' not in events and 'BOMB_DROPPED' not in events and np.any(new_game_state['field'] == 1) :     
-        if self.trainingXnew[-1, i_crate_dis] < self.trainingXold[-1, i_crate_dis]:
-            events.append(MOVED_TOWARDS_CRATE1)
-        else:
-            events.append(MOVED_AWAY_FROM_CRATE1)
-
-
-    TARGETED_ENEMY         = 'TARGETED_ENEMY'
-    MOVED_TOWARDS_ENEMY1   = 'MOVED_TOWARDS_ENEMY1'
-    MOVED_AWAY_FROM_ENEMY1 = 'MOVED_AWAY_FROM_ENEMY1'
+            events.append(MOVED_AWAY_FROM_ENEMY1)
+            
 
 
         

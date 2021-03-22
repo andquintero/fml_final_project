@@ -476,6 +476,8 @@ def reward_its_a_trap(self, action, events, new_game_state):
     #print("Bomb can harm old: ", self.trainingXold[-1, i_bomb_harms]==1,  self.trainingXold[-1, i_bomb_harms])
     #print("Bomb can harm new: ", self.trainingXnew[-1, i_bomb_harms]==1,  self.trainingXnew[-1, i_bomb_harms])
 
+    #!WARNING need to add a new feature to find if it's been targeted by an anemy
+    # and avoid penalizing
     # Check if the last movement was a good movement (did not move into a harmful position)
     idx = np.where(self.trainingXold[-1, [0,1,2,3,i_wait,i_bomb_avail]] >= [0,0,0,0,0,1])[0]
     #print('action in ACTIONS', action in [ACTIONS[i] for i in idx])
