@@ -83,7 +83,7 @@ def act(self, game_state: dict) -> str:
     #print('state_to_features:', current_features)
     model_pred = self.model.predict(current_features)
     #print('model predict:', model_pred)
-    model_pred = rand_simweight_actions(model_pred[0])
+    #model_pred = rand_simweight_actions(model_pred[0])
     if log_events: self.logger.debug(f'model predict: {model_pred}') 
     #print('model predict 2:', model_pred)
     return ACTIONS[np.random.choice(np.flatnonzero(model_pred == model_pred.max())) ]
