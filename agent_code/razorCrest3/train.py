@@ -518,7 +518,7 @@ def reward_its_a_trap(self, action, events, new_game_state):
                 # Check if staying waiting is the only action
                 print("MOVED_AWAY_FROM_DANGER: Waiting is the best option to escape") if printhelp else None
                 events.append(MOVED_AWAY_FROM_DANGER)
-            elif any(self.trainingXold[-1, [0,1,2,3]] == 0) and any(self.trainingXold[-1, [0,1,2,3]] == 0) and action == 'WAIT':
+            elif any(self.trainingXold[-1, [0,1,2,3]] == 0) and any(self.trainingXnew[-1, [0,1,2,3]] == 0) and action == 'WAIT':
                 # Check if it is waaiting when free options are available
                 events.append(WAITED_WHILE_FREE)
             
